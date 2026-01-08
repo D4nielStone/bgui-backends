@@ -47,12 +47,6 @@ void bgui::shutdown_freetype() {
     std::cout << "[FREETYPE] Shutdown.\n";
 }
 
-// Helper C++17 compatible ends_with
-inline bool ends_with(const std::string &str, const std::string &suffix) {
-    return str.size() >= suffix.size() &&
-           str.compare(str.size() - suffix.size(), suffix.size(), suffix) == 0;
-}
-
 static std::vector<std::string> split_filters(const std::string& filters) {
     std::vector<std::string> result;
     std::string token;
@@ -97,7 +91,7 @@ void bgui::ft_search_system_fonts(const std::string& filter) {
         auto path = entry.path().string();
 
         // then verify the extension
-        if (!(ends_with(path, ".ttf") || ends_with(path, ".otf")))
+    if (!(path.ends_with(".ttf") || path.ends_with(".otf")) && !(path.ends_with(".TTF") || path.ends_with(".OTF")))
             continue;
 
         // multiple filters process
