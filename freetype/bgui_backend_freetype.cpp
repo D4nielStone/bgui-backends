@@ -14,37 +14,39 @@ static std::unordered_map<std::string, std::string> s_system_fonts;
 static FT_Library s_ft;
 
 void bgui::set_up_freetype() {
+    std::cout << "[FreeType BackEnd]Setting up FreeType and searching for default fonts.\n";
+
     if (FT_Init_FreeType(&s_ft)) {
         throw std::runtime_error("Error initializing Freetype.");
     }
 
-    std::cout << "[FREETYPE] Initialized.\n";
+    std::cout << "[FreeType BackEnd] Initialized.\n";
 
     ft_search_system_fonts("");
 
 
-    std::cout << "[FREETYPE] Total system fonts found: " << s_system_fonts.size() << "\n";
+    std::cout << "[FreeType BackEnd] Total system fonts found: " << s_system_fonts.size() << "\n";
 
     if (s_system_fonts.find("Arial CE-Bold") == s_system_fonts.end()) {
-        std::cerr << "[FREETYPE] WARNING: Default font not found. Trying another font instead.\n";
+        std::cerr << "[FreeType BackEnd] WARNING: Default font not found. Trying another font instead.\n";
         ft_load_font(s_system_fonts.begin()->first, s_system_fonts.begin()->second,
                      bgui::font_manager::m_default_resolution);
     } else {
-        std::cout << "[FREETYPE] Loading default font: Arial CE-Bold\n";
+        std::cout << "[FreeType BackEnd] Loading default font: Arial CE-Bold\n";
         ft_load_font("Arial CE-Bold", s_system_fonts["Arial CE-Bold"],
                      bgui::font_manager::m_default_resolution);
     }
 }
 
 bgui::font& bgui::ft_load_system_font(const std::string& path) {
-    std::cout << "[FREETYPE] Loading system font: " << path << "\n";
+    std::cout << "[FreeType BackEnd] Loading system font: " << path << "\n";
     return ft_load_font(path, s_system_fonts[path],
                     bgui::font_manager::m_default_resolution);
 }
 
 void bgui::shutdown_freetype() {
     FT_Done_FreeType(s_ft);
-    std::cout << "[FREETYPE] Shutdown.\n";
+    std::cout << "[FreeType BackEnd] Shutdown.\n";
 }
 
 static std::vector<std::string> split_filters(const std::string& filters) {
@@ -77,7 +79,7 @@ void bgui::ft_search_system_fonts(const std::string& filter) {
 
     auto filters = split_filters(filter);
 
-    std::cout << "[FREETYPE] Scanning fonts in: " << folder;
+    std::cout << "[FreeType BackEnd] Scanning fonts in: " << folder;
     if (!filters.empty()) {
         std::cout << " with filters: ";
         for (auto& f : filters) std::cout << f << " ";

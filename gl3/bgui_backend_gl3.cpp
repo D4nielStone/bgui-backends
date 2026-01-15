@@ -197,12 +197,13 @@ void bgui::gl3_clear_texture_cache() {
 
 // gl3 initial setup
 void bgui::set_up_gl3() {
+    std::cout << "[OpenGL3 BackEnd] Setting up OpenGL.\n";
     // gladLoadGL returns non-zero on success (depending on your glad configuration).
     // If you use gladLoadGLLoader you need to call gladLoadGLLoader((GLADloadproc)glfwGetProcAddress) earlier.
     if (gladLoadGL())
-        std::cout << "OpenGL loaded successfully!" << std::endl;
+        std::cout << "[OpenGL3 BackEnd] OpenGL loaded successfully!" << std::endl;
     else
-        std::cout << "Failed to initialize OpenGL context" << std::endl;    
+        std::cout << "[OpenGL3 BackEnd] Failed to initialize OpenGL context" << std::endl;    
 
     // default pixel unpack alignment for arbitrary image widths
     glPixelStorei(GL_UNPACK_ALIGNMENT, 1);

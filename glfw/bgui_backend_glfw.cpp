@@ -19,6 +19,7 @@ static std::unordered_map<int, bgui::input_action> s_glfw_action_reverse_map = {
 
 // GLFW Backend functions
 GLFWwindow* bgui::set_up_glfw(int width, int height, const char* title, int flags, GLFWmonitor* monitor, GLFWwindow* share) {
+    std::cout << "[GLFW BackEnd] Setting up GLFW and creating a window.\n";
     if(s_window) 
     throw std::runtime_error("GLFW wind already exists.");
     if (!glfwInit()) {
@@ -94,7 +95,7 @@ void bgui::shutdown_glfw() {
 
 bool bgui::should_close_glfw() {
     if(!s_window)
-        throw std::runtime_error("BGUI::GLFW::Please Setup GLFW First!");
+        throw std::runtime_error("[BGUI] GLFW::Please Setup GLFW First!");
     return glfwWindowShouldClose(s_window);
 }
 
