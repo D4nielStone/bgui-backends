@@ -229,11 +229,11 @@ void bgui::shutdown_gl3() {
 void bgui::gl3_render(bgui::draw_data* data) {
     if(data->m_quad_requires.empty()) throw std::runtime_error("Nothing to render. Have you update the interface?");
     // basic clear
-    const auto& style = bgui::get_style();
+    /*const auto& style = bgui::get_style();
     glClearColor(style.m_clear_color[0],
                  style.m_clear_color[1],
                  style.m_clear_color[2],
-                 style.m_clear_color[3]);
+                 style.m_clear_color[3]);*/
 
     const auto window_size = bgui::get_context_size();
     glViewport(0, 0, window_size[0], window_size[1]);
