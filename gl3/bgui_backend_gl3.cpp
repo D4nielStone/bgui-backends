@@ -230,15 +230,14 @@ void bgui::shutdown_gl3() {
 void bgui::gl3_render(bgui::draw_data* data) {
     if(data->m_quad_requires.empty()) throw std::runtime_error("Nothing to render. Have you update the interface?");
     // basic clear
-    /*const auto& style = bgui::get_style();
-    glClearColor(style.m_clear_color[0],
-                 style.m_clear_color[1],
-                 style.m_clear_color[2],
-                 style.m_clear_color[3]);*/
+    auto& sm = style_manager::get_instance();
+    const auto& global = sm.get_global();
+    const auto& bg = global.visual.background;
+
 
     const auto window_size = bgui::get_context_size();
     glViewport(0, 0, window_size[0], window_size[1]);
-
+    glClearColor(bg.r, bg.g, bg.b, bg.a);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
 
     // Ensure VAO exists (recreate if needed)
