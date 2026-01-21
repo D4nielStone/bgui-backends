@@ -234,7 +234,6 @@ void bgui::gl3_render(bgui::draw_data* data) {
     const auto& global = sm.get_global();
     const auto& bg = global.visual.background;
 
-
     const auto window_size = bgui::get_context_size();
     glViewport(0, 0, window_size[0], window_size[1]);
     glClearColor(bg.r, bg.g, bg.b, bg.a);

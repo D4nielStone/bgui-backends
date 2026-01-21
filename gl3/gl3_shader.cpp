@@ -198,19 +198,19 @@ void gl3_shader::set_mat4(const char *name, const bgui::mat4 matrix) {
 void gl3_shader::set_vec4(const char *name, const bgui::vec4 vector) {
     GLint loc = glGetUniformLocation(m_id, name);
     if (loc >= 0)
-    glUniform4f(loc, vector[0], vector[1], vector[2], vector[3]);
+    glUniform4f(loc, vector[0], vector[1], vector.z, vector.w);
 }
 
 void gl3_shader::set_vec4(const char *name, const bgui::vec4i vector) {
     GLint loc = glGetUniformLocation(m_id, name);
     if (loc >= 0)
-    glUniform4i(loc, vector[0], vector[1], vector[2], vector[3]);
+    glUniform4i(loc, vector[0], vector[1], vector.z, vector.w);
 }
 
 void gl3_shader::set_vec3(const char *name, const bgui::vec3 vector) {
     GLint loc = glGetUniformLocation(m_id, name);
     if (loc >= 0)
-    glUniform3f(loc, vector[0], vector[1], vector[2]);
+    glUniform3f(loc, vector[0], vector[1], vector.z);
 }
 
 void gl3_shader::set_vec2(const char *name, const bgui::vec2 vector) {
