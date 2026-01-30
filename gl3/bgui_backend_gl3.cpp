@@ -232,11 +232,13 @@ void bgui::gl3_render(bgui::draw_data* data) {
     // basic clear
     auto& sm = style_manager::get_instance();
     const auto& global = sm.get_global();
-    const auto& bg = *global.visual.background.normal;
 
     const auto window_size = bgui::get_context_size();
     glViewport(0, 0, window_size[0], window_size[1]);
-    glClearColor(bg.r, bg.g, bg.b, bg.a);
+    if(global.visual.background.normal) {
+        const auto& bg = *global.visual.background.normal;
+        glClearColor(bg.r, bg.g, bg.b, bg.a);
+    }
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
 
     // Ensure VAO exists (recreate if needed)
