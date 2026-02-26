@@ -22,7 +22,7 @@ void bgui::set_up_freetype() {
 
     std::cout << "[FreeType BackEnd] Initialized.\n";
 
-    ft_search_system_fonts("");
+    ft_search_system_fonts("Ubuntu,Noto,Arial,Open");
 
 
     std::cout << "[FreeType BackEnd] Total system fonts found: " << s_system_fonts.size() << "\n";
@@ -40,8 +40,13 @@ void bgui::set_up_freetype() {
 
 bgui::font& bgui::ft_load_system_font(const std::string& path) {
     std::cout << "[FreeType BackEnd] Loading system font: " << path << "\n";
+    // 1: Verify if it's font was already loaded
+    if(font_manager::get_instance().has_font(path))font_manager::get_instance().get_font(path);
+    if(s_system_fonts.find(path) != s_system_fonts.end())
     return ft_load_font(path, s_system_fonts[path],
                     bgui::font_manager::m_default_resolution);
+    else
+        return font_manager::get_instance().get_font("default");
 }
 
 void bgui::shutdown_freetype() {
@@ -114,7 +119,8 @@ void bgui::ft_search_system_fonts(const std::string& filter) {
         if (!FT_New_Face(s_ft, path.c_str(), 0, &face)) {
             std::string family = face->family_name ? face->family_name : "(unknown)";
             std::string style  = face->style_name  ? face->style_name  : "(unknown)";
-            s_system_fonts[family + "-" + style] = path;
+            std::cout << "[FONT] Found " << family << " " << style << std::endl;
+            s_system_fonts[family + " " + style] = path;
             FT_Done_Face(face);
         }
     }
@@ -124,8 +130,8 @@ bgui::font& bgui::ft_load_font(const std::string &font_name,
                                const std::string &font_path,
                                unsigned int resolution)
 {
-    auto &fmgr = bgui::font_manager::get_font_manager();
-    std::string key = font_name + "#" + std::to_string(resolution);
+    auto &fmgr = bgui::font_manager::get_instance();
+    std::string key = font_name;
 
     if (fmgr.has_font(key)) {
         std::cout << "[FONT] Using cached font: " << key << "\n";
@@ -233,4 +239,11 @@ bgui::font& bgui::ft_load_font(const std::string &font_name,
 
 
     return fmgr.m_fonts[key];
+}
+void bgui::load_font_queue() {
+    auto f = bgui::font_manager::get_instance().m_font_queue;
+    while(!f.empty()) {
+        ft_load_system_font(f.front());
+        f.pop();
+    }
 }
