@@ -39,9 +39,11 @@ void bgui::set_up_freetype() {
 }
 
 bgui::font& bgui::ft_load_system_font(const std::string& path) {
-    std::cout << "[FreeType BackEnd] Loading system font: " << path << "\n";
     // 1: Verify if it's font was already loaded
-    if(font_manager::get_instance().has_font(path))font_manager::get_instance().get_font(path);
+    if(font_manager::get_instance().has_font(path) || path == "default")
+        return font_manager::get_instance().get_font(path);
+    std::cout << "[FreeType BackEnd] Loading system font: " << path << "\n";
+
     if(s_system_fonts.find(path) != s_system_fonts.end())
     return ft_load_font(path, s_system_fonts[path],
                     bgui::font_manager::m_default_resolution);

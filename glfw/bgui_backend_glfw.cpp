@@ -46,7 +46,6 @@ GLFWwindow* bgui::set_up_glfw(int width, int height, const char* title, int flag
     glfwSetMouseButtonCallback(window, bgui::glfw_mouse_button_callback);
 
     glfwMakeContextCurrent(window);
-    glfwSwapInterval(1); // Enable vsync
     return window;
 }
 void bgui::glfw_update(bgui::context &window_io) {
