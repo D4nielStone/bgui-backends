@@ -226,9 +226,7 @@ void bgui::shutdown_gl3() {
     s_quad_vao.reset();
 }
 
-// Render main
-void bgui::gl3_render(bgui::draw_data* data) {
-    if(data->m_quad_requires.empty()) throw std::runtime_error("Nothing to render. Have you update the interface?");
+void bgui::gl3_clear() {
     // basic clear
     auto& sm = style_manager::get_instance();
     const auto& global = sm.get_global();
@@ -240,6 +238,10 @@ void bgui::gl3_render(bgui::draw_data* data) {
         glClearColor(bg.r, bg.g, bg.b, bg.a);
     }
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
+}
+// Render main
+void bgui::gl3_render(bgui::draw_data* data) {
+    if(data->m_quad_requires.empty()) throw std::runtime_error("Nothing to render. Have you update the interface?");
 
     // Ensure VAO exists (recreate if needed)
     glBindVertexArray(get_quad_vao());
@@ -297,4 +299,29 @@ void bgui::gl3_render(bgui::draw_data* data) {
 
     // unbind texture for hygiene
     glBindTexture(GL_TEXTURE_2D, 0);
+}
+
+std::string& bgui::get_gl_version() {
+    static std::string version_str;
+    if (version_str.empty()) {
+        version_str = reinterpret_cast<const char*>(glGetString(GL_VERSION));
+    }
+    return version_str;
+}
+
+std::string& bgui::get_gl_vendor() {
+    static std::string vendor_str;
+    if (vendor_str.empty()) {
+        vendor_str = reinterpret_cast<const char*>(glGetString(GL_VENDOR));
+    }
+    return vendor_str;
+}
+
+std::string bgui::get_glsl_version() {
+    std::string version_str = reinterpret_cast<const char*>(glGetString(GL_SHADING_LANGUAGE_VERSION));
+    // Extract major version number for GLSL version
+    int major_version = 0;
+    std::istringstream iss(version_str);
+    iss >> major_version;
+    return "GLSL " + std::to_string(major_version) + ".00";
 }
