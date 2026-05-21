@@ -121,7 +121,7 @@ void bgui::ft_search_system_fonts(const std::string& filter) {
         if (!FT_New_Face(s_ft, path.c_str(), 0, &face)) {
             std::string family = face->family_name ? face->family_name : "(unknown)";
             std::string style  = face->style_name  ? face->style_name  : "(unknown)";
-            std::cout << "[FONT] Found " << family << " " << style << std::endl;
+            // std::cout << "[FONT] Found " << family << " " << style << std::endl;
             s_system_fonts[family + " " + style] = path;
             FT_Done_Face(face);
         }
