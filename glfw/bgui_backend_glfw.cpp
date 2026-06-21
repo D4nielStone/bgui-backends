@@ -90,6 +90,15 @@ GLFWwindow* bgui::set_up_glfw(int width, int height, const char* title, int flag
     return window;
 }
 
+void bgui::glfw_main_loop() {
+    while (!glfwWindowShouldClose(s_window)) {
+        glfwPollEvents();
+        if(bgui::get_context().m_refresh_func) {
+            bgui::get_context().m_refresh_func();
+        }
+    }
+}
+
 void bgui::glfw_update(bgui::context &window_io) {
     int width, height;
     glfwGetWindowSize(s_window, &width, &height);

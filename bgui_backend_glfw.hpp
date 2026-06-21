@@ -4,6 +4,7 @@
 
 namespace bgui {
     GLFWwindow* set_up_glfw(int width, int height, const char* title, int flags = 0, GLFWmonitor* monitor = nullptr, GLFWwindow* share = nullptr);
+    void glfw_main_loop();
     void glfw_update(bgui::context &window_io);
     void glfw_mouse_button_callback(GLFWwindow* window, int button, int action, int mods);
     void glfw_key_callback(GLFWwindow* window, int key, int scancode, int action, int mods);
