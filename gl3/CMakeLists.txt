@@ -9,7 +9,24 @@ add_library(bgui_backend_gl3 STATIC
     gl3_shader.cpp
 )
 
+if (BGUI_USE_GLFW)
+    target_compile_definitions(bgui_backend_gl3 PUBLIC BGUI_USE_GLFW)
+endif()
+
+if (BGUI_USE_SDL)
+    target_compile_definitions(bgui_backend_gl3 PUBLIC BGUI_USE_SDL)
+endif()
+
 target_compile_definitions(bgui_backend_gl3 PUBLIC BGUI_USE_OPENGL)
+
+if (BGUI_USE_GLFW)
+    find_package(glfw3 CONFIG REQUIRED)
+    target_link_libraries(bgui_backend_gl3 PUBLIC glfw)
+endif()
+
+if (BGUI_USE_SDL)
+    target_link_libraries(bgui_backend_gl3 PUBLIC SDL2)
+endif()
 
 target_link_libraries(bgui_backend_gl3
     PUBLIC glad bgui_core
