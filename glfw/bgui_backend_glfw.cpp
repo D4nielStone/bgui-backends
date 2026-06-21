@@ -41,6 +41,16 @@ static std::string utf32_to_utf8(char32_t ch) {
     return out;
 }
 
+void bgui::glfw_framebuffer_size_callback(GLFWwindow* window, int width, int height) {
+    bgui::get_context().m_size = bgui::vec2i{width, height};
+}
+void bgui::glfw_window_refresh_callback(GLFWwindow* window) {
+    if(bgui::get_context().m_refresh_func) {
+        bgui::get_context().m_refresh_func();
+    }
+}
+
+
 // GLFW Backend functions
 GLFWwindow* bgui::set_up_glfw(int width, int height, const char* title, int flags, GLFWmonitor* monitor, GLFWwindow* share) {
     std::cout << "[GLFW BackEnd] Setting up GLFW and creating a window.\n";
@@ -70,6 +80,8 @@ GLFWwindow* bgui::set_up_glfw(int width, int height, const char* title, int flag
     glfwSetMouseButtonCallback(window, bgui::glfw_mouse_button_callback);
     glfwSetKeyCallback(window, bgui::glfw_key_callback);
     glfwSetCharCallback(window, bgui::glfw_char_callback);
+    glfwSetFramebufferSizeCallback(window, bgui::glfw_framebuffer_size_callback);
+    glfwSetWindowRefreshCallback(window, bgui::glfw_window_refresh_callback);
 
     glfwMakeContextCurrent(window);
     // Disable VSync for more accurate FPS measurement
@@ -79,8 +91,6 @@ GLFWwindow* bgui::set_up_glfw(int width, int height, const char* title, int flag
 }
 
 void bgui::glfw_update(bgui::context &window_io) {
-    glfwPollEvents();
-
     int width, height;
     glfwGetWindowSize(s_window, &width, &height);
     window_io.m_size[0] = width;
