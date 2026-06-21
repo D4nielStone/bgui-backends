@@ -22,8 +22,11 @@ void bgui::set_up_freetype() {
 
     std::cout << "[FreeType BackEnd] Initialized.\n";
 
-    ft_search_system_fonts("Ubuntu,Noto,Arial,Open");
+    ft_search_system_fonts("ARIAL,Arial,arial");
 
+    for(auto font : s_system_fonts) {
+        std::cout << " - " << font.first << ": " << font.second << "\n";
+    }
 
     std::cout << "[FreeType BackEnd] Total system fonts found: " << s_system_fonts.size() << "\n";
 
