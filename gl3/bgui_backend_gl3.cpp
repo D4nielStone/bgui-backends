@@ -249,7 +249,7 @@ void bgui::gl3_clear() {
 }
 // Render main
 void bgui::gl3_render(bgui::draw_data* data) {
-    if(data->m_quad_requires.empty()) throw std::runtime_error("Nothing to render. Have you update the interface?");
+    if(data->m_quad_requires.empty()) return;
     glDisable(GL_DEPTH_TEST); // Ensure depth test is disabled for UI rendering
     // Ensure VAO exists (recreate if needed)
     glBindVertexArray(get_quad_vao());
