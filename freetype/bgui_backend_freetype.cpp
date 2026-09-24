@@ -9,6 +9,8 @@
 #include <vector>
 #include <memory>
 #include <cmath>
+#include <cctype>
+#include <cstdlib>
 
 static std::unordered_map<std::string, std::string> s_system_fonts;
 static FT_Library s_ft;
@@ -23,6 +25,10 @@ void bgui::set_up_freetype() {
     std::cout << "[FreeType BackEnd] Initialized.\n";
 
     ft_search_system_fonts("ARIAL,Arial,arial");
+    if (s_system_fonts.empty()) {
+        std::cout << "[FreeType BackEnd] No Arial fonts found. Searching all system fonts.\n";
+        ft_search_system_fonts();
+    }
 
     for(auto font : s_system_fonts) {
         std::cout << " - " << font.first << ": " << font.second << "\n";
@@ -32,6 +38,8 @@ void bgui::set_up_freetype() {
 
     if (s_system_fonts.find("Arial CE-Bold") == s_system_fonts.end()) {
         std::cerr << "[FreeType BackEnd] WARNING: Default font not found. Trying another font instead.\n";
+        if (s_system_fonts.empty())
+            throw std::runtime_error("No system fonts were found.");
         ft_load_font(s_system_fonts.begin()->first, s_system_fonts.begin()->second,
                      bgui::font_manager::m_default_resolution);
     } else {
@@ -81,15 +89,23 @@ static std::vector<std::string> split_filters(const std::string& filters) {
 
 // Scan system fonts
 void bgui::ft_search_system_fonts(const std::string& filter) {
-#ifdef _WIN32
-    std::string folder = "C:\\Windows\\Fonts";
-#else
-    std::string folder = "/usr/share/fonts";
-#endif
-
     auto filters = split_filters(filter);
 
-    std::cout << "[FreeType BackEnd] Scanning fonts in: " << folder;
+    std::vector<std::filesystem::path> folders;
+#ifdef _WIN32
+    folders.emplace_back("C:\\Windows\\Fonts");
+#else
+    folders.emplace_back("/usr/share/fonts");
+    folders.emplace_back("/usr/local/share/fonts");
+    if (const char* home = std::getenv("HOME")) {
+        folders.emplace_back(std::filesystem::path(home) / ".local/share/fonts");
+        folders.emplace_back(std::filesystem::path(home) / ".fonts");
+    }
+#endif
+
+    std::cout << "[FreeType BackEnd] Scanning fonts in:";
+    for (const auto& folder : folders)
+        std::cout << " " << folder.string();
     if (!filters.empty()) {
         std::cout << " with filters: ";
         for (auto& f : filters) std::cout << f << " ";
@@ -97,13 +113,26 @@ void bgui::ft_search_system_fonts(const std::string& filter) {
     std::cout << "\n";
 
     // search recursivaly for font files
-    for (const auto &entry : std::filesystem::recursive_directory_iterator(folder)) {
+    s_system_fonts.clear();
+    for (const auto& folder : folders) {
+        std::error_code iterator_error;
+        if (!std::filesystem::is_directory(folder, iterator_error))
+            continue;
+
+        for (const auto& entry : std::filesystem::recursive_directory_iterator(
+                 folder,
+                 std::filesystem::directory_options::skip_permission_denied,
+                 iterator_error)) {
         // first pick the file
         if (!entry.is_regular_file()) continue;
         auto path = entry.path().string();
 
         // then verify the extension
-    if (!(path.ends_with(".ttf") || path.ends_with(".otf")) && !(path.ends_with(".TTF") || path.ends_with(".OTF")))
+        const auto extension = entry.path().extension().string();
+        std::string lower_extension = extension;
+        std::transform(lower_extension.begin(), lower_extension.end(), lower_extension.begin(),
+                       [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+        if (lower_extension != ".ttf" && lower_extension != ".otf")
             continue;
 
         // multiple filters process
@@ -128,6 +157,7 @@ void bgui::ft_search_system_fonts(const std::string& filter) {
             s_system_fonts[family + " " + style] = path;
             FT_Done_Face(face);
         }
+        }
     }
 }
 
@@ -136,11 +166,14 @@ bgui::font& bgui::ft_load_font(const std::string &font_name,
                                unsigned int resolution)
 {
     auto &fmgr = bgui::font_manager::get_instance();
-    std::string key = font_name;
+    if (resolution == 0)
+        throw std::invalid_argument("Font resolution must be greater than zero.");
 
-    if (fmgr.has_font(key)) {
+    const std::string key = bgui::font_manager::make_key(font_name, resolution);
+
+    if (fmgr.has_font(font_name, resolution)) {
         std::cout << "[FONT] Using cached font: " << key << "\n";
-        return fmgr.get_font(key);
+        return fmgr.get_font(font_name, resolution);
     }
 
     // Load face
@@ -155,6 +188,9 @@ bgui::font& bgui::ft_load_font(const std::string &font_name,
     bgui::font font{};
     font.atlas.m_path = font_path;
     font.atlas.m_use_red_channel = true;
+    font.family = face->family_name ? face->family_name : font_name;
+    font.style = face->style_name ? face->style_name : "regular";
+    font.resolution = resolution;
 
     const int padding = 4;
     const int ascent_pixels  = face->size->metrics.ascender  / 64;
@@ -239,16 +275,26 @@ bgui::font& bgui::ft_load_font(const std::string &font_name,
 
     FT_Done_Face(face);
 
-    fmgr.m_fonts.emplace(key, std::move(font));
+    auto [font_it, inserted] = fmgr.m_fonts.emplace(key, std::move(font));
+    if (!inserted)
+        return font_it->second;
+
+    if (!fmgr.has_font("default", resolution))
+        fmgr.set_default_font(font_name, resolution);
+
+    if (fmgr.m_on_font_loaded)
+        fmgr.m_on_font_loaded(font_it->second);
+
     std::cout << "[FONT] Loaded and cached: " << key << "\n";
 
 
-    return fmgr.m_fonts[key];
+    return font_it->second;
 }
 void bgui::load_font_queue() {
-    auto f = bgui::font_manager::get_instance().m_font_queue;
-    while(!f.empty()) {
-        ft_load_system_font(f.front());
-        f.pop();
+    auto& queue = bgui::font_manager::get_instance().m_font_queue;
+    while (!queue.empty()) {
+        const auto name = std::move(queue.front());
+        queue.pop();
+        ft_load_system_font(name);
     }
 }
