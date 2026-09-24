@@ -8,6 +8,8 @@ namespace bgui {
     std::string &get_gl_vendor();
     std::string get_glsl_version();
     void gl3_clear_texture_cache();
+    // Enables linear font-atlas filtering when true, or nearest filtering when false.
+    void set_font_antialiasing(bool enabled);
     void set_up_gl3();
     void shutdown_gl3();
     // clear the screen based on the style manager's global background color

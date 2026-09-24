@@ -4,6 +4,13 @@ target_compile_definitions(bgui_backend_vulkan PUBLIC BGUI_USE_VULKAN)
 
 find_package(Vulkan REQUIRED)
 target_link_libraries(bgui_backend_vulkan PUBLIC  Vulkan::Vulkan bgui_core)
+
+if(BGUI_USE_GLFW)
+    target_compile_definitions(bgui_backend_vulkan PUBLIC BGUI_USE_GLFW)
+    find_package(glfw3 CONFIG REQUIRED)
+    target_link_libraries(bgui_backend_vulkan PUBLIC glfw)
+endif()
+
 target_include_directories(bgui_backend_vulkan
     PUBLIC ${PROJECT_SOURCE_DIR}/backend
     ${PROJECT_SOURCE_DIR}
