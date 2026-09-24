@@ -10,6 +10,7 @@
 #include <string>
 #include <sstream>
 #include <algorithm>
+#include <unordered_set>
 
 #ifdef BGUI_USE_GLFW
 #include <GLFW/glfw3.h>
@@ -77,6 +78,9 @@ static bool s_font_antialiasing = true;
 
 // Singleton VAO (recreated if needed)
 static std::unique_ptr<quad_vao> s_quad_vao;
+static std::unordered_set<GLuint> s_logged_text_textures;
+static unsigned int s_render_log_count = 0;
+static unsigned int s_text_draw_log_count = 0;
 
 // Helper: build a cache key robust to same path but different buffer/flags
 static std::string build_texture_cache_key(const bgui::texture& tex) {
@@ -113,6 +117,8 @@ GLuint bgui::get_quad_vao() {
 
 // Safe function to obtain/generate texture (fixed with DEBUG logic)
 GLuint bgui::gl3_get_texture(const bgui::texture& tex) {
+    if (tex.m_external)
+        return tex.m_id;
 
     const std::string key = build_texture_cache_key(tex);
     auto it = m_texture_cache.find(key);
@@ -192,6 +198,20 @@ GLuint bgui::gl3_get_texture(const bgui::texture& tex) {
     }
     m_texture_cache[key] = texture_id;
 
+    if (tex.m_use_red_channel && s_logged_text_textures.insert(texture_id).second) {
+        const auto non_zero = std::count_if(
+            tex.m_buffer.begin(),
+            tex.m_buffer.end(),
+            [](unsigned char value) { return value != 0; }
+        );
+        std::cerr
+            << "[BGUI GL3] Font texture uploaded id=" << texture_id
+            << " size=" << tex.m_size[0] << "x" << tex.m_size[1]
+            << " bytes=" << tex.m_buffer.size()
+            << " non_zero=" << non_zero
+            << "\n";
+    }
+
     // unbind texture for hygiene
     glBindTexture(GL_TEXTURE_2D, 0);
 
@@ -265,6 +285,27 @@ void bgui::gl3_clear() {
 // Render main
 void bgui::gl3_render(bgui::draw_data* data) {
     if(data->m_quad_requires.empty()) return;
+    const auto queued_quads = data->m_quad_requires.size();
+    size_t text_quads = 0;
+    size_t image_quads = 0;
+    std::queue<bgui::draw_require> debug_queue = data->m_quad_requires;
+    while (!debug_queue.empty()) {
+        const auto& call = debug_queue.front();
+        if (call.m_material.m_shader_tag == "ui::text")
+            ++text_quads;
+        if (call.m_material.m_shader_tag == "ui::image")
+            ++image_quads;
+        debug_queue.pop();
+    }
+    if (s_render_log_count < 10) {
+        std::cerr
+            << "[BGUI GL3] frame=" << s_render_log_count
+            << " quads=" << queued_quads
+            << " text_quads=" << text_quads
+            << " image_quads=" << image_quads
+            << "\n";
+        ++s_render_log_count;
+    }
     glDisable(GL_DEPTH_TEST); // Ensure depth test is disabled for UI rendering
     // Ensure VAO exists (recreate if needed)
     glBindVertexArray(get_quad_vao());
@@ -295,6 +336,17 @@ void bgui::gl3_render(bgui::draw_data* data) {
             GLuint texid = gl3_get_texture(call.m_material.m_texture);
             glBindTexture(GL_TEXTURE_2D, texid);
             shader->set("tex", 0); // sampler unit 0
+            if (call.m_material.m_shader_tag == "ui::text" &&
+                s_text_draw_log_count < 5) {
+                std::cerr
+                    << "[BGUI GL3] text draw texture_id=" << texid
+                    << " uv=" << call.m_uv_min[0] << "," << call.m_uv_min[1]
+                    << " -> " << call.m_uv_max[0] << "," << call.m_uv_max[1]
+                    << " rect=" << call.m_rect[0] << "," << call.m_rect[1]
+                    << " " << call.m_rect[2] << "x" << call.m_rect[3]
+                    << "\n";
+                ++s_text_draw_log_count;
+            }
         } else {
             // make sure no texture bound if material doesn't want texture (avoid sampling mistakes)
             glBindTexture(GL_TEXTURE_2D, 0);

@@ -4,12 +4,15 @@
 #include <stdexcept>
 #include <iostream>
 #include <memory>
+#include <unordered_set>
 #include <gl3/gl3_shader.hpp>
 #include "gl3_shader.hpp"
 
 using namespace bgl;
 
 static std::map<std::pair<std::string, std::string>, GLuint> gl3_shader_cache;
+static std::unordered_set<std::string> missing_uniform_warnings;
+static std::unordered_set<std::string> shader_tag_logs;
 static std::map<std::string, std::string> embedded_gl3_shaders = {
 {"ui::default_vs", R"(#version 330 core
 layout(location = 0) in vec2 aPos;
@@ -75,6 +78,19 @@ void main() {
     float r = texture(tex, uv).r;
 
     FragColor = vec4(text_color.rgb, r * text_color.w);
+}
+)"}, {"ui::image_fs", R"(#version 330 core
+
+in vec2 Uv;
+out vec4 FragColor;
+
+uniform sampler2D tex;
+uniform vec2 uv_min;
+uniform vec2 uv_max;
+
+void main() {
+    vec2 uv = mix(uv_min, uv_max, Uv);
+    FragColor = texture(tex, uv);
 }
 )"}
 };
@@ -199,6 +215,11 @@ void gl3_shader::set_vec4(const char *name, const bgui::vec4 vector) {
     GLint loc = glGetUniformLocation(m_id, name);
     if (loc >= 0)
     glUniform4f(loc, vector[0], vector[1], vector.z, vector.w);
+    else if (missing_uniform_warnings.insert(
+                 std::to_string(m_id) + ":" + name
+             ).second)
+        std::cerr << "[BGUI GL3] Missing vec4 uniform \"" << name
+                  << "\" in program " << m_id << "\n";
 }
 
 void gl3_shader::set_vec4(const char *name, const bgui::vec4i vector) {
@@ -263,7 +284,15 @@ gl3_shader* bgl::get_gl3_shader_from_tag(const std::string& name) {
     if(name == "ui::default") {
         return bgl::get_default_gl3_shader();
     } else if(name == "ui::text") {
-        return bgl::get_text_gl3_shader();
+        auto* shader = bgl::get_text_gl3_shader();
+        if (shader_tag_logs.insert(name).second)
+            std::cerr << "[BGUI GL3] shader tag ui::text resolved\n";
+        return shader;
+    } else if(name == "ui::image") {
+        static gl3_shader s("ui::default_vs", "ui::image_fs");
+        if (shader_tag_logs.insert(name).second)
+            std::cerr << "[BGUI GL3] shader tag ui::image resolved\n";
+        return &s;
     } else {
         return bgl::get_default_gl3_shader();
     }
