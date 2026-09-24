@@ -125,8 +125,10 @@ GLFWwindow* bgui::set_up_glfw(
     glfwSetFramebufferSizeCallback(s_window, bgui::glfw_framebuffer_size_callback);
     glfwSetWindowRefreshCallback(s_window, bgui::glfw_window_refresh_callback);
 
+#ifdef BGUI_USE_OPENGL
     glfwMakeContextCurrent(s_window);
     glfwSwapInterval(0);
+#endif
 
     return s_window;
 }

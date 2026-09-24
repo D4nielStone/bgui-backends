@@ -2,6 +2,8 @@ add_library(bgui_backend_glfw STATIC bgui_backend_glfw.cpp)
 
 if (BGUI_USE_OPENGL)
 target_compile_definitions(bgui_backend_glfw PUBLIC BGUI_USE_GLFW BGUI_USE_OPENGL)
+elseif(BGUI_USE_VULKAN)
+target_compile_definitions(bgui_backend_glfw PUBLIC BGUI_USE_GLFW BGUI_USE_VULKAN)
 else()
 target_compile_definitions(bgui_backend_glfw PUBLIC BGUI_USE_GLFW)
 endif()

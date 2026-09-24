@@ -73,6 +73,7 @@ struct quad_vao {
 
 // Texture cache: map key -> GLuint
 static std::unordered_map<std::string, GLuint> m_texture_cache;
+static bool s_font_antialiasing = true;
 
 // Singleton VAO (recreated if needed)
 static std::unique_ptr<quad_vao> s_quad_vao;
@@ -124,8 +125,12 @@ GLuint bgui::gl3_get_texture(const bgui::texture& tex) {
     // basic wrap / filter for UI; caller can change if needed
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);    
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, tex.m_generate_mipmap ? GL_LINEAR_MIPMAP_LINEAR : GL_LINEAR);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    const GLenum filter = s_font_antialiasing ? GL_LINEAR : GL_NEAREST;
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER,
+                   tex.m_generate_mipmap && s_font_antialiasing
+                       ? GL_LINEAR_MIPMAP_LINEAR
+                       : filter);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, filter);
 
     if (!tex.m_buffer.empty()) {
         
@@ -199,7 +204,17 @@ void bgui::gl3_clear_texture_cache() {
         GLuint id = kv.second;
         if (id) glDeleteTextures(1, &id);
     }
+
     m_texture_cache.clear();
+}
+
+void bgui::set_font_antialiasing(bool enabled) {
+    if (s_font_antialiasing == enabled)
+        return;
+
+    s_font_antialiasing = enabled;
+    // Existing atlas textures contain the old sampler state.
+    gl3_clear_texture_cache();
 }
 
 // gl3 initial setup
