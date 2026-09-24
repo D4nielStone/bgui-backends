@@ -2,6 +2,7 @@
 #include <stdexcept>
 #include <iostream>
 #include <vector>
+#include <cstring>
 #ifdef BGUI_USE_GLFW
 #include <GLFW/glfw3.h>
 #endif
@@ -41,7 +42,7 @@ VKAPI_ATTR VkBool32 VKAPI_CALL bgui::bgui_vk_debug_callback(
 
 // Creates Vulkan instance + debug messenger
 void bgui::create_vk_instance() {
-    const char* validationLayers[] = { "VK_LAYER_KHRONOS_validation" };
+    const char* validationLayer = "VK_LAYER_KHRONOS_validation";
 
     VkApplicationInfo appInfo{};
     appInfo.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
@@ -65,40 +66,57 @@ void bgui::create_vk_instance() {
     debugCreateInfo.pfnUserCallback = bgui::bgui_vk_debug_callback;
     debugCreateInfo.pUserData = nullptr;
 
-    VkInstanceCreateInfo createInfo{};
-    createInfo.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
-    createInfo.pApplicationInfo = &appInfo;
-    createInfo.enabledLayerCount = 1;
-    createInfo.ppEnabledLayerNames = validationLayers;
-
 #ifdef BGUI_USE_GLFW
     uint32_t glfwExtensionCount = 0;
     const char** glfwExtensions = glfwGetRequiredInstanceExtensions(&glfwExtensionCount);
+    if (!glfwExtensions || glfwExtensionCount == 0) {
+        throw std::runtime_error(
+            "GLFW did not provide the Vulkan instance extensions required to create a surface."
+        );
+    }
     std::vector<const char*> extensions(glfwExtensions, glfwExtensions + glfwExtensionCount);
+#endif
 
-    bool enableValidationLayers = true;
-    if (enableValidationLayers) {
-        extensions.push_back(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
+    uint32_t layerCount = 0;
+    vkEnumerateInstanceLayerProperties(&layerCount, nullptr);
+    std::vector<VkLayerProperties> availableLayers(layerCount);
+    vkEnumerateInstanceLayerProperties(&layerCount, availableLayers.data());
+
+    bool enableValidationLayers = false;
+    for (const auto& layer : availableLayers) {
+        if (std::strcmp(layer.layerName, validationLayer) == 0) {
+            enableValidationLayers = true;
+            break;
+        }
     }
 
     VkInstanceCreateInfo createInfo{};
     createInfo.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
     createInfo.pApplicationInfo = &appInfo;
-    createInfo.enabledLayerCount = 1;
-    createInfo.ppEnabledLayerNames = validationLayers;
+    if (enableValidationLayers) {
+        createInfo.enabledLayerCount = 1;
+        createInfo.ppEnabledLayerNames = &validationLayer;
+#ifdef BGUI_USE_GLFW
+        extensions.push_back(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
+#endif
+        createInfo.pNext = &debugCreateInfo;
+    }
+#ifdef BGUI_USE_GLFW
     createInfo.enabledExtensionCount = static_cast<uint32_t>(extensions.size());
     createInfo.ppEnabledExtensionNames = extensions.data();
-    createInfo.pNext = enableValidationLayers ? (VkDebugUtilsMessengerCreateInfoEXT*)&debugCreateInfo : nullptr;
-
 #endif
 
-    if (vkCreateInstance(&createInfo, nullptr, &vk.instance) != VK_SUCCESS) {
-        throw std::runtime_error("VK bgui::failed to create instance!");
+    const VkResult result = vkCreateInstance(&createInfo, nullptr, &vk.instance);
+    if (result != VK_SUCCESS) {
+        throw std::runtime_error(
+            "VK bgui::failed to create instance: " + std::to_string(result)
+        );
     }
 
     // Creates the actual messenger
     vk.debugMessenger = VK_NULL_HANDLE;
-    CreateDebugUtilsMessengerEXT(vk.instance, &debugCreateInfo, nullptr, &vk.debugMessenger);
+    if (enableValidationLayers)
+        CreateDebugUtilsMessengerEXT(vk.instance, &debugCreateInfo, nullptr, &vk.debugMessenger);
 }
 
 void bgui::shutdown_vulkan() {
@@ -120,5 +138,11 @@ void bgui::set_up_vulkan() {
 }
 
 void bgui::vulkan_render(bgui::draw_data* draw_data) {
-    // Placeholder
+    if (!draw_data)
+        return;
+
+    // The Vulkan renderer is not implemented yet, but every backend must
+    // consume the frame's draw queue so the next update starts clean.
+    while (!draw_data->m_quad_requires.empty())
+        draw_data->m_quad_requires.pop();
 }
