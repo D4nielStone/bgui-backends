@@ -82,6 +82,30 @@ void bgui::glfw_window_refresh_callback(GLFWwindow*)
 // Setup
 // -----------------------------------------------------------------------------
 
+void bgui::attach_glfw_window(GLFWwindow* window)
+{
+    if (!window)
+        throw std::invalid_argument("Cannot attach a null GLFW window.");
+
+    if (s_window && s_window != window)
+        throw std::runtime_error("GLFW window already exists.");
+
+    s_window = window;
+
+    auto& io = bgui::get_context();
+    glfwGetWindowSize(s_window, &io.m_size.x, &io.m_size.y);
+    glfwSetMouseButtonCallback(s_window, bgui::glfw_mouse_button_callback);
+    glfwSetKeyCallback(s_window, bgui::glfw_key_callback);
+    glfwSetCharCallback(s_window, bgui::glfw_char_callback);
+    glfwSetFramebufferSizeCallback(s_window, bgui::glfw_framebuffer_size_callback);
+    glfwSetWindowRefreshCallback(s_window, bgui::glfw_window_refresh_callback);
+}
+
+void bgui::detach_glfw_window()
+{
+    s_window = nullptr;
+}
+
 GLFWwindow* bgui::set_up_glfw(
     int width,
     int height,

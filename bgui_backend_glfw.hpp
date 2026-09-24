@@ -4,6 +4,8 @@
 
 namespace bgui {
     GLFWwindow* set_up_glfw(int width, int height, const char* title, int flags = 0, GLFWmonitor* monitor = nullptr, GLFWwindow* share = nullptr);
+    void attach_glfw_window(GLFWwindow* window);
+    void detach_glfw_window();
     void add_glfw_window_position(int x, int y);
     void glfw_main_loop();
     void glfw_update(bgui::context &window_io);
