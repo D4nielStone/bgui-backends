@@ -18,6 +18,8 @@ static std::unordered_map<int, bgui::input_key> s_glfw_key_reverse_map = {
 static std::unordered_map<int, bgui::input_key> s_glfw_keyboard_reverse_map = {
     {GLFW_KEY_BACKSPACE, bgui::input_key::backspace},
     {GLFW_KEY_ENTER, bgui::input_key::enter},
+    {GLFW_KEY_LEFT, bgui::input_key::left},
+    {GLFW_KEY_RIGHT, bgui::input_key::right},
 };
 
 static std::unordered_map<int, bgui::input_action> s_glfw_action_reverse_map = {
