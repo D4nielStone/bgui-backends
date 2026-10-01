@@ -307,6 +307,7 @@ void bgui::gl3_render(bgui::draw_data* data) {
         ++s_render_log_count;
     }
     glDisable(GL_DEPTH_TEST); // Ensure depth test is disabled for UI rendering
+    glEnable(GL_SCISSOR_TEST);
     // Ensure VAO exists (recreate if needed)
     glBindVertexArray(get_quad_vao());
 
@@ -315,11 +316,18 @@ void bgui::gl3_render(bgui::draw_data* data) {
     // We'll avoid binding/unbinding shader for each quad:
     // track last shader to reduce state changes
     bgl::gl3_shader* last_shader = nullptr;
+    const auto window_size = bgui::get_context_size();
 
     // process all quad requires
     while (!data->m_quad_requires.empty()) {
         auto call = data->m_quad_requires.front();
         data->m_quad_requires.pop();
+
+        if (call.m_clip_rect.z <= 0 || call.m_clip_rect.w <= 0)
+            continue;
+        glScissor(call.m_clip_rect.x,
+                  window_size.y - call.m_clip_rect.y - call.m_clip_rect.w,
+                  call.m_clip_rect.z, call.m_clip_rect.w);
 
         auto* shader = bgl::get_gl3_shader_from_tag(call.m_material.m_shader_tag);
         if (!shader) continue;
@@ -371,6 +379,7 @@ void bgui::gl3_render(bgui::draw_data* data) {
     // unbind last shader and VAO
     if (last_shader) last_shader->unbind();
     glBindVertexArray(0);
+    glDisable(GL_SCISSOR_TEST);
 
     // unbind texture for hygiene
     glBindTexture(GL_TEXTURE_2D, 0);

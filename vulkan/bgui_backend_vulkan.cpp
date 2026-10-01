@@ -478,6 +478,20 @@ void vulkan_render(draw_data* data) {
     vkCmdBindPipeline(frame.command, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline);
     while (!data->m_quad_requires.empty()) {
         auto call = data->m_quad_requires.front(); data->m_quad_requires.pop();
+        const int framebuffer_width = static_cast<int>(vk.swapchain_extent.width);
+        const int framebuffer_height = static_cast<int>(vk.swapchain_extent.height);
+        const int clip_left = std::clamp(call.m_clip_rect.x, 0, framebuffer_width);
+        const int clip_top = std::clamp(call.m_clip_rect.y, 0, framebuffer_height);
+        const int clip_right = std::clamp(call.m_clip_rect.x + call.m_clip_rect.z, 0, framebuffer_width);
+        const int clip_bottom = std::clamp(call.m_clip_rect.y + call.m_clip_rect.w, 0, framebuffer_height);
+        if (clip_right <= clip_left || clip_bottom <= clip_top) continue;
+        VkRect2D draw_scissor{};
+        draw_scissor.offset = {clip_left, clip_top};
+        draw_scissor.extent = {
+            static_cast<uint32_t>(clip_right - clip_left),
+            static_cast<uint32_t>(clip_bottom - clip_top)
+        };
+        vkCmdSetScissor(frame.command, 0, 1, &draw_scissor);
         PushConstants pc{};
         auto projection = get_projection();
         std::memcpy(pc.projection, projection.data(), sizeof(pc.projection));

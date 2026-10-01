@@ -212,6 +212,10 @@ void bgui::glfw_update(context& io)
     static GLFWcursor* hand  = glfwCreateStandardCursor(GLFW_HAND_CURSOR);
     static GLFWcursor* arrow = glfwCreateStandardCursor(GLFW_ARROW_CURSOR);
     static GLFWcursor* ibeam = glfwCreateStandardCursor(GLFW_IBEAM_CURSOR);
+    static GLFWcursor* resize_horizontal = glfwCreateStandardCursor(GLFW_RESIZE_EW_CURSOR);
+    static GLFWcursor* resize_vertical = glfwCreateStandardCursor(GLFW_RESIZE_NS_CURSOR);
+    static GLFWcursor* resize_nwse = glfwCreateStandardCursor(GLFW_RESIZE_NWSE_CURSOR);
+    static GLFWcursor* resize_nesw = glfwCreateStandardCursor(GLFW_RESIZE_NESW_CURSOR);
 
     switch (io.m_actual_cursor)
     {
@@ -225,6 +229,22 @@ void bgui::glfw_update(context& io)
 
         case bgui::cursor::ibeam:
             glfwSetCursor(s_window, ibeam);
+            break;
+
+        case bgui::cursor::resize_horizontal:
+            glfwSetCursor(s_window, resize_horizontal);
+            break;
+
+        case bgui::cursor::resize_vertical:
+            glfwSetCursor(s_window, resize_vertical);
+            break;
+
+        case bgui::cursor::resize_nwse:
+            glfwSetCursor(s_window, resize_nwse);
+            break;
+
+        case bgui::cursor::resize_nesw:
+            glfwSetCursor(s_window, resize_nesw);
             break;
     }
 }
