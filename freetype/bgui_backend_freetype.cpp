@@ -1,4 +1,5 @@
 #include <bgui_backend_freetype.hpp>
+#include "os/asset_manager.hpp"
 #include <unordered_map>
 #include <filesystem>
 #include <stdexcept>
@@ -166,6 +167,7 @@ bgui::font& bgui::ft_load_font(const std::string &font_name,
                                unsigned int resolution)
 {
     auto &fmgr = bgui::font_manager::get_instance();
+    auto &assets = bgui::asset_manager::get_instance();
     if (resolution == 0)
         throw std::invalid_argument("Font resolution must be greater than zero.");
 
@@ -275,20 +277,18 @@ bgui::font& bgui::ft_load_font(const std::string &font_name,
 
     FT_Done_Face(face);
 
-    auto [font_it, inserted] = fmgr.m_fonts.emplace(key, std::move(font));
-    if (!inserted)
-        return font_it->second;
+    auto& stored_font = assets.store_font(font_name, resolution, std::move(font));
 
     if (!fmgr.has_font("default", resolution))
         fmgr.set_default_font(font_name, resolution);
 
     if (fmgr.m_on_font_loaded)
-        fmgr.m_on_font_loaded(font_it->second);
+        fmgr.m_on_font_loaded(stored_font);
 
     std::cout << "[FONT] Loaded and cached: " << key << "\n";
 
 
-    return font_it->second;
+    return stored_font;
 }
 void bgui::load_font_queue() {
     auto& queue = bgui::font_manager::get_instance().m_font_queue;
