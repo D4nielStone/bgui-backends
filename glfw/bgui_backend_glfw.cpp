@@ -154,7 +154,7 @@ GLFWwindow* bgui::set_up_glfw(
     glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
 #endif
 
-    glfwWindowHint(GLFW_TRANSPARENT_FRAMEBUFFER, GLFW_TRUE);
+    glfwWindowHint(GLFW_TRANSPARENT_FRAMEBUFFER, GLFW_FALSE);
 
     s_window = glfwCreateWindow(width, height, title, monitor, share);
 

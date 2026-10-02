@@ -204,12 +204,6 @@ GLuint bgui::gl3_get_texture(const bgui::texture& tex) {
             tex.m_buffer.end(),
             [](unsigned char value) { return value != 0; }
         );
-        std::cerr
-            << "[BGUI GL3] Font texture uploaded id=" << texture_id
-            << " size=" << tex.m_size[0] << "x" << tex.m_size[1]
-            << " bytes=" << tex.m_buffer.size()
-            << " non_zero=" << non_zero
-            << "\n";
     }
 
     // unbind texture for hygiene
@@ -297,15 +291,6 @@ void bgui::gl3_render(bgui::draw_data* data) {
             ++image_quads;
         debug_queue.pop();
     }
-    if (s_render_log_count < 10) {
-        std::cerr
-            << "[BGUI GL3] frame=" << s_render_log_count
-            << " quads=" << queued_quads
-            << " text_quads=" << text_quads
-            << " image_quads=" << image_quads
-            << "\n";
-        ++s_render_log_count;
-    }
     glDisable(GL_DEPTH_TEST); // Ensure depth test is disabled for UI rendering
     glEnable(GL_SCISSOR_TEST);
     // Ensure VAO exists (recreate if needed)
@@ -344,17 +329,7 @@ void bgui::gl3_render(bgui::draw_data* data) {
             GLuint texid = gl3_get_texture(call.m_material.m_texture);
             glBindTexture(GL_TEXTURE_2D, texid);
             shader->set("tex", 0); // sampler unit 0
-            if (call.m_material.m_shader_tag == "ui::text" &&
-                s_text_draw_log_count < 5) {
-                std::cerr
-                    << "[BGUI GL3] text draw texture_id=" << texid
-                    << " uv=" << call.m_uv_min[0] << "," << call.m_uv_min[1]
-                    << " -> " << call.m_uv_max[0] << "," << call.m_uv_max[1]
-                    << " rect=" << call.m_rect[0] << "," << call.m_rect[1]
-                    << " " << call.m_rect[2] << "x" << call.m_rect[3]
-                    << "\n";
-                ++s_text_draw_log_count;
-            }
+            +s_text_draw_log_count;
         } else {
             // make sure no texture bound if material doesn't want texture (avoid sampling mistakes)
             glBindTexture(GL_TEXTURE_2D, 0);
