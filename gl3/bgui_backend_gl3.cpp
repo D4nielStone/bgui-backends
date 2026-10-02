@@ -292,6 +292,7 @@ void bgui::gl3_render(bgui::draw_data* data) {
         debug_queue.pop();
     }
     glDisable(GL_DEPTH_TEST); // Ensure depth test is disabled for UI rendering
+    glDisable(GL_CULL_FACE);
     glEnable(GL_SCISSOR_TEST);
     // Ensure VAO exists (recreate if needed)
     glBindVertexArray(get_quad_vao());
