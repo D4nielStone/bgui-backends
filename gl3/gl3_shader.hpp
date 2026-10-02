@@ -38,6 +38,7 @@ namespace bgl {
     };
     gl3_shader* get_default_gl3_shader();
     gl3_shader* get_text_gl3_shader();
+    gl3_shader* get_draw_gl3_shader();
     gl3_shader* get_gl3_shader_from_tag(const std::string&);
     static void delete_gl3_shaders();
 } // namespace bgl

@@ -79,6 +79,21 @@ void main() {
 
     FragColor = vec4(text_color.rgb, r * text_color.w);
 }
+)"}, {"ui::draw_vs", R"(#version 330 core
+layout(location = 0) in vec2 aPos;
+layout(location = 1) in vec4 aColor;
+out vec4 vertexColor;
+uniform mat4 projection;
+void main() {
+    vertexColor = aColor;
+    gl_Position = projection * vec4(aPos, 0.0, 1.0);
+}
+)"}, {"ui::draw_fs", R"(#version 330 core
+in vec4 vertexColor;
+out vec4 FragColor;
+void main() {
+    FragColor = vertexColor;
+}
 )"}, {"ui::image_fs", R"(#version 330 core
 
 in vec2 Uv;
@@ -280,6 +295,11 @@ gl3_shader* bgl::get_text_gl3_shader() {
     return &s;
 }
 
+gl3_shader* bgl::get_draw_gl3_shader() {
+    static gl3_shader s("ui::draw_vs", "ui::draw_fs");
+    return &s;
+}
+
 gl3_shader* bgl::get_gl3_shader_from_tag(const std::string& name) {
     if(name == "ui::default") {
         return bgl::get_default_gl3_shader();
@@ -293,6 +313,8 @@ gl3_shader* bgl::get_gl3_shader_from_tag(const std::string& name) {
         if (shader_tag_logs.insert(name).second)
             std::cerr << "[BGUI GL3] shader tag ui::image resolved\n";
         return &s;
+    } else if(name == "ui::draw") {
+        return bgl::get_draw_gl3_shader();
     } else {
         return bgl::get_default_gl3_shader();
     }

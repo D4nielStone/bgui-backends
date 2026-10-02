@@ -10,6 +10,7 @@
 #include <string>
 #include <sstream>
 #include <algorithm>
+#include <cstddef>
 #include <unordered_set>
 
 #ifdef BGUI_USE_GLFW
@@ -72,12 +73,39 @@ struct quad_vao {
     }
 };
 
+struct draw_vao {
+    GLuint vao = 0;
+    GLuint vbo = 0;
+
+    draw_vao() {
+        glGenVertexArrays(1, &vao);
+        glGenBuffers(1, &vbo);
+        glBindVertexArray(vao);
+        glBindBuffer(GL_ARRAY_BUFFER, vbo);
+        glBufferData(GL_ARRAY_BUFFER, 0, nullptr, GL_DYNAMIC_DRAW);
+        glEnableVertexAttribArray(0);
+        glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, sizeof(bgui::draw_vertex),
+                              reinterpret_cast<void*>(offsetof(bgui::draw_vertex, m_position)));
+        glEnableVertexAttribArray(1);
+        glVertexAttribPointer(1, 4, GL_FLOAT, GL_FALSE, sizeof(bgui::draw_vertex),
+                              reinterpret_cast<void*>(offsetof(bgui::draw_vertex, m_color)));
+        glBindBuffer(GL_ARRAY_BUFFER, 0);
+        glBindVertexArray(0);
+    }
+
+    ~draw_vao() {
+        if (vbo) glDeleteBuffers(1, &vbo);
+        if (vao) glDeleteVertexArrays(1, &vao);
+    }
+};
+
 // Texture cache: map key -> GLuint
 static std::unordered_map<std::string, GLuint> m_texture_cache;
 static bool s_font_antialiasing = true;
 
 // Singleton VAO (recreated if needed)
 static std::unique_ptr<quad_vao> s_quad_vao;
+static std::unique_ptr<draw_vao> s_draw_vao;
 static std::unordered_set<GLuint> s_logged_text_textures;
 static unsigned int s_render_log_count = 0;
 static unsigned int s_text_draw_log_count = 0;
@@ -261,6 +289,7 @@ void bgui::shutdown_gl3() {
 
     // reset and delete VAO/VBO
     s_quad_vao.reset();
+    s_draw_vao.reset();
 }
 
 void bgui::gl3_clear() {
@@ -278,7 +307,7 @@ void bgui::gl3_clear() {
 }
 // Render main
 void bgui::gl3_render(bgui::draw_data* data) {
-    if(data->m_quad_requires.empty()) return;
+    if(data->m_quad_requires.empty() && data->m_draw_list.get_vertices().empty()) return;
     const auto queued_quads = data->m_quad_requires.size();
     size_t text_quads = 0;
     size_t image_quads = 0;
@@ -351,6 +380,29 @@ void bgui::gl3_render(bgui::draw_data* data) {
         // draw: call.m_count should be number of vertices (6 for quad)
         glDrawArrays(GL_TRIANGLES, 0, call.m_count);
     }
+
+    const auto& draw_vertices = data->m_draw_list.get_vertices();
+    if (!draw_vertices.empty() && data->m_clip_rect.z > 0 && data->m_clip_rect.w > 0) {
+        if (last_shader) last_shader->unbind();
+        auto* draw_shader = bgl::get_draw_gl3_shader();
+        draw_shader->bind();
+        bgui::propertie projection_property{proj};
+        draw_shader->set("projection", projection_property);
+        glScissor(data->m_clip_rect.x,
+                  window_size.y - data->m_clip_rect.y - data->m_clip_rect.w,
+                  data->m_clip_rect.z, data->m_clip_rect.w);
+        if (!s_draw_vao) s_draw_vao = std::make_unique<draw_vao>();
+        glBindVertexArray(s_draw_vao->vao);
+        glBindBuffer(GL_ARRAY_BUFFER, s_draw_vao->vbo);
+        glBufferData(GL_ARRAY_BUFFER,
+                     static_cast<GLsizeiptr>(draw_vertices.size() * sizeof(bgui::draw_vertex)),
+                     draw_vertices.data(), GL_DYNAMIC_DRAW);
+        glDrawArrays(GL_TRIANGLES, 0, static_cast<GLsizei>(draw_vertices.size()));
+        glBindBuffer(GL_ARRAY_BUFFER, 0);
+        glBindVertexArray(0);
+        draw_shader->unbind();
+    }
+    data->m_draw_list.clear();
 
     // unbind last shader and VAO
     if (last_shader) last_shader->unbind();
