@@ -123,6 +123,7 @@ void bgui::attach_glfw_window(GLFWwindow* window)
     glfwSetMouseButtonCallback(s_window, bgui::glfw_mouse_button_callback);
     glfwSetKeyCallback(s_window, bgui::glfw_key_callback);
     glfwSetCharCallback(s_window, bgui::glfw_char_callback);
+    glfwSetScrollCallback(s_window, bgui::glfw_scroll_callback);
     glfwSetFramebufferSizeCallback(s_window, bgui::glfw_framebuffer_size_callback);
     glfwSetWindowRefreshCallback(s_window, bgui::glfw_window_refresh_callback);
 }
@@ -172,6 +173,7 @@ GLFWwindow* bgui::set_up_glfw(
     glfwSetMouseButtonCallback(s_window, bgui::glfw_mouse_button_callback);
     glfwSetKeyCallback(s_window, bgui::glfw_key_callback);
     glfwSetCharCallback(s_window, bgui::glfw_char_callback);
+    glfwSetScrollCallback(s_window, bgui::glfw_scroll_callback);
     glfwSetFramebufferSizeCallback(s_window, bgui::glfw_framebuffer_size_callback);
     glfwSetWindowRefreshCallback(s_window, bgui::glfw_window_refresh_callback);
 
@@ -366,6 +368,11 @@ void bgui::glfw_char_callback(GLFWwindow*, unsigned int codepoint)
 
     bgui::get_context().m_char_buffer +=
         utf32_to_utf8((char32_t)codepoint);
+}
+
+void bgui::glfw_scroll_callback(GLFWwindow*, double, double yoffset)
+{
+    bgui::get_context().m_scroll_delta_y += static_cast<float>(yoffset);
 }
 
 // -----------------------------------------------------------------------------
