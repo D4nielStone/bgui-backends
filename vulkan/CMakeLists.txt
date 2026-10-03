@@ -3,7 +3,7 @@ add_library(bgui_backend_vulkan STATIC bgui_backend_vulkan.cpp)
 target_compile_definitions(bgui_backend_vulkan PUBLIC BGUI_USE_VULKAN)
 
 find_package(Vulkan REQUIRED)
-target_link_libraries(bgui_backend_vulkan PUBLIC  Vulkan::Vulkan bgui_core)
+target_link_libraries(bgui_backend_vulkan PUBLIC  Vulkan::Vulkan)
 
 if(BGUI_USE_GLFW)
     target_compile_definitions(bgui_backend_vulkan PUBLIC BGUI_USE_GLFW)
