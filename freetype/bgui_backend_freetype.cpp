@@ -37,17 +37,22 @@ void bgui::set_up_freetype() {
 
     std::cout << "[FreeType BackEnd] Total system fonts found: " << s_system_fonts.size() << "\n";
 
-    if (s_system_fonts.find("Arial CE-Bold") == s_system_fonts.end()) {
+    std::string default_font_name;
+    std::string default_font_path;
+    if (const auto it = s_system_fonts.find("Arial CE-Bold"); it != s_system_fonts.end()) {
+        default_font_name = "Arial CE-Bold";
+        default_font_path = it->second;
+        std::cout << "[FreeType BackEnd] Loading default font: Arial CE-Bold\n";
+    } else {
         std::cerr << "[FreeType BackEnd] WARNING: Default font not found. Trying another font instead.\n";
         if (s_system_fonts.empty())
             throw std::runtime_error("No system fonts were found.");
-        ft_load_font(s_system_fonts.begin()->first, s_system_fonts.begin()->second,
-                     bgui::font_manager::m_default_resolution);
-    } else {
-        std::cout << "[FreeType BackEnd] Loading default font: Arial CE-Bold\n";
-        ft_load_font("Arial CE-Bold", s_system_fonts["Arial CE-Bold"],
-                     bgui::font_manager::m_default_resolution);
+        default_font_name = s_system_fonts.begin()->first;
+        default_font_path = s_system_fonts.begin()->second;
+        std::cout << "[FreeType BackEnd] Loading fallback default font: " << default_font_name << "\n";
     }
+
+    ft_load_font(default_font_name, default_font_path, bgui::font_manager::m_default_resolution);
 }
 
 bgui::font& bgui::ft_load_system_font(const std::string& path) {
