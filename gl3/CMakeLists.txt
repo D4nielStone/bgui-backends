@@ -29,7 +29,7 @@ if (BGUI_USE_SDL)
 endif()
 
 target_link_libraries(bgui_backend_gl3
-    PUBLIC glad bgui_core
+    PUBLIC glad
 )
 
 target_include_directories(bgui_backend_gl3
