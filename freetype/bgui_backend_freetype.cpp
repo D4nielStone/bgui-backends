@@ -233,6 +233,7 @@ bgui::font& bgui::ft_load_font(const std::string &font_name,
     bgui::font font{};
     font.atlas.m_path = font_path;
     font.atlas.m_use_red_channel = true;
+    font.atlas.m_generate_mipmap = false;
     font.family = face->family_name ? face->family_name : font_name;
     font.style = face->style_name ? face->style_name : "regular";
     font.resolution = resolution;
