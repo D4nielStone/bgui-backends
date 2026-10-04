@@ -25,11 +25,7 @@ void bgui::set_up_freetype() {
 
     std::cout << "[FreeType BackEnd] Initialized.\n";
 
-    ft_search_system_fonts("ARIAL,Arial,arial");
-    if (s_system_fonts.empty()) {
-        std::cout << "[FreeType BackEnd] No Arial fonts found. Searching all system fonts.\n";
-        ft_search_system_fonts();
-    }
+    ft_search_system_fonts();
 
     for(auto font : s_system_fonts) {
         std::cout << " - " << font.first << ": " << font.second << "\n";
@@ -39,10 +35,52 @@ void bgui::set_up_freetype() {
 
     std::string default_font_name;
     std::string default_font_path;
-    if (const auto it = s_system_fonts.find("Arial CE-Bold"); it != s_system_fonts.end()) {
-        default_font_name = "Arial CE-Bold";
+
+    const std::vector<std::string> monospace_families = {
+        "cascadia mono", "cascadia code", "consolas", "dejavu sans mono",
+        "liberation mono", "source code pro", "fira code", "fira mono",
+        "jetbrains mono", "roboto mono", "ubuntu mono", "noto sans mono",
+        "droid sans mono", "courier new", "courier", "menlo", "monaco",
+        "mono", "fixed"
+    };
+    const auto lowercase = [](std::string value) {
+        std::transform(value.begin(), value.end(), value.begin(),
+                       [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+        return value;
+    };
+
+    auto monospace_font = s_system_fonts.end();
+    for (const auto& family : monospace_families) {
+        auto matching_font = s_system_fonts.end();
+        for (auto it = s_system_fonts.begin(); it != s_system_fonts.end(); ++it) {
+            const auto name = lowercase(it->first);
+            if (name.find(family) == std::string::npos)
+                continue;
+
+            if (matching_font == s_system_fonts.end())
+                matching_font = it;
+            if (name.find("regular") != std::string::npos ||
+                name.find("book") != std::string::npos ||
+                name.find("normal") != std::string::npos) {
+                matching_font = it;
+                break;
+            }
+        }
+        if (matching_font != s_system_fonts.end()) {
+            monospace_font = matching_font;
+            break;
+        }
+    }
+
+    if (monospace_font != s_system_fonts.end()) {
+        default_font_name = monospace_font->first;
+        default_font_path = monospace_font->second;
+        std::cout << "[FreeType BackEnd] Loading default monospace font: "
+                  << default_font_name << "\n";
+    } else if (const auto it = s_system_fonts.find("Arial CE-Bold"); it != s_system_fonts.end()) {
+        default_font_name = it->first;
         default_font_path = it->second;
-        std::cout << "[FreeType BackEnd] Loading default font: Arial CE-Bold\n";
+        std::cout << "[FreeType BackEnd] Loading default font: " << default_font_name << "\n";
     } else {
         std::cerr << "[FreeType BackEnd] WARNING: Default font not found. Trying another font instead.\n";
         if (s_system_fonts.empty())
