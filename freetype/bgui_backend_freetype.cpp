@@ -1,10 +1,10 @@
 #include <bgui_backend_freetype.hpp>
 #include "os/asset_manager.hpp"
+#include "utils/logging.hpp"
 #include <unordered_map>
 #include <filesystem>
 #include <stdexcept>
 #include <fstream>
-#include <iostream>
 #include <algorithm>
 #include <string>
 #include <vector>
@@ -17,21 +17,21 @@ static std::unordered_map<std::string, std::string> s_system_fonts;
 static FT_Library s_ft;
 
 void bgui::set_up_freetype() {
-    std::cout << "[FreeType BackEnd]Setting up FreeType and searching for default fonts.\n";
+    bgui::detail::log_out() << "[FreeType BackEnd]Setting up FreeType and searching for default fonts.\n";
 
     if (FT_Init_FreeType(&s_ft)) {
         throw std::runtime_error("Error initializing Freetype.");
     }
 
-    std::cout << "[FreeType BackEnd] Initialized.\n";
+    bgui::detail::log_out() << "[FreeType BackEnd] Initialized.\n";
 
     ft_search_system_fonts();
 
     for(auto font : s_system_fonts) {
-        std::cout << " - " << font.first << ": " << font.second << "\n";
+        bgui::detail::log_out() << " - " << font.first << ": " << font.second << "\n";
     }
 
-    std::cout << "[FreeType BackEnd] Total system fonts found: " << s_system_fonts.size() << "\n";
+    bgui::detail::log_out() << "[FreeType BackEnd] Total system fonts found: " << s_system_fonts.size() << "\n";
 
     std::string default_font_name;
     std::string default_font_path;
@@ -75,19 +75,19 @@ void bgui::set_up_freetype() {
     if (monospace_font != s_system_fonts.end()) {
         default_font_name = monospace_font->first;
         default_font_path = monospace_font->second;
-        std::cout << "[FreeType BackEnd] Loading default monospace font: "
+        bgui::detail::log_out() << "[FreeType BackEnd] Loading default monospace font: "
                   << default_font_name << "\n";
     } else if (const auto it = s_system_fonts.find("Arial CE-Bold"); it != s_system_fonts.end()) {
         default_font_name = it->first;
         default_font_path = it->second;
-        std::cout << "[FreeType BackEnd] Loading default font: " << default_font_name << "\n";
+        bgui::detail::log_out() << "[FreeType BackEnd] Loading default font: " << default_font_name << "\n";
     } else {
-        std::cerr << "[FreeType BackEnd] WARNING: Default font not found. Trying another font instead.\n";
+        bgui::detail::log_err() << "[FreeType BackEnd] WARNING: Default font not found. Trying another font instead.\n";
         if (s_system_fonts.empty())
             throw std::runtime_error("No system fonts were found.");
         default_font_name = s_system_fonts.begin()->first;
         default_font_path = s_system_fonts.begin()->second;
-        std::cout << "[FreeType BackEnd] Loading fallback default font: " << default_font_name << "\n";
+        bgui::detail::log_out() << "[FreeType BackEnd] Loading fallback default font: " << default_font_name << "\n";
     }
 
     ft_load_font(default_font_name, default_font_path, bgui::font_manager::m_default_resolution);
@@ -97,7 +97,7 @@ bgui::font& bgui::ft_load_system_font(const std::string& path) {
     // 1: Verify if it's font was already loaded
     if(font_manager::get_instance().has_font(path) || path == "default")
         return font_manager::get_instance().get_font(path);
-    std::cout << "[FreeType BackEnd] Loading system font: " << path << "\n";
+    bgui::detail::log_out() << "[FreeType BackEnd] Loading system font: " << path << "\n";
 
     if(s_system_fonts.find(path) != s_system_fonts.end())
     return ft_load_font(path, s_system_fonts[path],
@@ -108,7 +108,7 @@ bgui::font& bgui::ft_load_system_font(const std::string& path) {
 
 void bgui::shutdown_freetype() {
     FT_Done_FreeType(s_ft);
-    std::cout << "[FreeType BackEnd] Shutdown.\n";
+    bgui::detail::log_out() << "[FreeType BackEnd] Shutdown.\n";
 }
 
 static std::vector<std::string> split_filters(const std::string& filters) {
@@ -147,14 +147,14 @@ void bgui::ft_search_system_fonts(const std::string& filter) {
     }
 #endif
 
-    std::cout << "[FreeType BackEnd] Scanning fonts in:";
+    bgui::detail::log_out() << "[FreeType BackEnd] Scanning fonts in:";
     for (const auto& folder : folders)
-        std::cout << " " << folder.string();
+        bgui::detail::log_out() << " " << folder.string();
     if (!filters.empty()) {
-        std::cout << " with filters: ";
-        for (auto& f : filters) std::cout << f << " ";
+        bgui::detail::log_out() << " with filters: ";
+        for (auto& f : filters) bgui::detail::log_out() << f << " ";
     }
-    std::cout << "\n";
+    bgui::detail::log_out() << "\n";
 
     // search recursivaly for font files
     s_system_fonts.clear();
@@ -217,7 +217,7 @@ bgui::font& bgui::ft_load_font(const std::string &font_name,
     const std::string key = bgui::font_manager::make_key(font_name, resolution);
 
     if (fmgr.has_font(font_name, resolution)) {
-        std::cout << "[FONT] Using cached font: " << key << "\n";
+        bgui::detail::log_out() << "[FONT] Using cached font: " << key << "\n";
         return fmgr.get_font(font_name, resolution);
     }
 
@@ -228,7 +228,7 @@ bgui::font& bgui::ft_load_font(const std::string &font_name,
 
     FT_Set_Pixel_Sizes(face, 0, resolution);
 
-    std::cout << "[FONT] Loading: " << font_name << " (" << font_path << ")\n";
+    bgui::detail::log_out() << "[FONT] Loading: " << font_name << " (" << font_path << ")\n";
 
     bgui::font font{};
     font.atlas.m_path = font_path;
@@ -262,7 +262,7 @@ bgui::font& bgui::ft_load_font(const std::string &font_name,
 
     font.atlas.m_buffer.assign(atlas_width * atlas_height, 0);
 
-    std::cout << "[FONT] Atlas size: " << atlas_width << " x " << atlas_height << "\n";
+    bgui::detail::log_out() << "[FONT] Atlas size: " << atlas_width << " x " << atlas_height << "\n";
 
     int xOffset = 0;
 
@@ -329,7 +329,7 @@ bgui::font& bgui::ft_load_font(const std::string &font_name,
     if (fmgr.m_on_font_loaded)
         fmgr.m_on_font_loaded(stored_font);
 
-    std::cout << "[FONT] Loaded and cached: " << key << "\n";
+    bgui::detail::log_out() << "[FONT] Loaded and cached: " << key << "\n";
 
 
     return stored_font;

@@ -7,6 +7,7 @@
 #include <unordered_set>
 #include <gl3/gl3_shader.hpp>
 #include "gl3_shader.hpp"
+#include "utils/logging.hpp"
 
 using namespace bgl;
 
@@ -233,7 +234,7 @@ void gl3_shader::set_vec4(const char *name, const bgui::vec4 vector) {
     else if (missing_uniform_warnings.insert(
                  std::to_string(m_id) + ":" + name
              ).second)
-        std::cerr << "[BGUI GL3] Missing vec4 uniform \"" << name
+        bgui::detail::log_err() << "[BGUI GL3] Missing vec4 uniform \"" << name
                   << "\" in program " << m_id << "\n";
 }
 
@@ -306,12 +307,12 @@ gl3_shader* bgl::get_gl3_shader_from_tag(const std::string& name) {
     } else if(name == "ui::text") {
         auto* shader = bgl::get_text_gl3_shader();
         if (shader_tag_logs.insert(name).second)
-            std::cerr << "[BGUI GL3] shader tag ui::text resolved\n";
+            bgui::detail::log_err() << "[BGUI GL3] shader tag ui::text resolved\n";
         return shader;
     } else if(name == "ui::image") {
         static gl3_shader s("ui::default_vs", "ui::image_fs");
         if (shader_tag_logs.insert(name).second)
-            std::cerr << "[BGUI GL3] shader tag ui::image resolved\n";
+            bgui::detail::log_err() << "[BGUI GL3] shader tag ui::image resolved\n";
         return &s;
     } else if(name == "ui::draw") {
         return bgl::get_draw_gl3_shader();
@@ -324,5 +325,5 @@ void bgl::delete_gl3_shaders() {
         glDeleteProgram(pair.second);
     }
     gl3_shader_cache.clear();
-    std::cout << "BGUI: Deleted all GL3 shaders from cache." << std::endl;
+    bgui::detail::log_out() << "BGUI: Deleted all GL3 shaders from cache." << std::endl;
 }

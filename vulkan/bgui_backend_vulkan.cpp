@@ -331,7 +331,7 @@ vulkan_backend_data vk{};
 
 VKAPI_ATTR VkBool32 VKAPI_CALL bgui_vk_debug_callback(VkDebugUtilsMessageSeverityFlagBitsEXT severity,
     VkDebugUtilsMessageTypeFlagsEXT, const VkDebugUtilsMessengerCallbackDataEXT* data, void*) {
-    std::cerr << (severity & VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT ? "[Vulkan error] " : "[Vulkan] ")
+    bgui::detail::log_err() << (severity & VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT ? "[Vulkan error] " : "[Vulkan] ")
               << data->pMessage << '\n';
     return VK_FALSE;
 }

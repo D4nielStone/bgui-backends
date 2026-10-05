@@ -171,7 +171,7 @@ GLuint bgui::gl3_get_texture(const bgui::texture& tex) {
         
         // Debug check: if the texture is a font atlas and the buffer is all zeros, use debug texture
         if (tex.m_use_red_channel && is_buffer_all_zeros(tex.m_buffer)) {
-            std::cerr << "[GL3 DEBUG] WARNING: Font atlas buffer (" << tex.m_path << ") is all zeros! Displaying debug texture.\n";
+            bgui::detail::log_err() << "[GL3 DEBUG] WARNING: Font atlas buffer (" << tex.m_path << ") is all zeros! Displaying debug texture.\n";
             debug_upload = true;
         }
 
@@ -260,12 +260,12 @@ void bgui::set_font_antialiasing(bool enabled) {
 
 // gl3 initial setup
 void bgui::set_up_gl3() {
-    std::cout << "[OpenGL3 BackEnd] Setting up OpenGL.\n";
+    bgui::detail::log_out() << "[OpenGL3 BackEnd] Setting up OpenGL.\n";
 
     if (PROC) {
-        std::cout << "[OpenGL3 BackEnd] OpenGL loaded successfully!" << std::endl;
+        bgui::detail::log_out() << "[OpenGL3 BackEnd] OpenGL loaded successfully!" << std::endl;
     } else {
-        std::cout << "[OpenGL3 BackEnd] Failed to initialize OpenGL context" << std::endl;    
+        bgui::detail::log_err() << "[OpenGL3 BackEnd] Failed to initialize OpenGL context" << std::endl;    
     }
   
 
