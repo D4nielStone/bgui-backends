@@ -17,8 +17,7 @@
 #include <GLFW/glfw3.h>
 #define PROC gladLoadGLLoader((GLADloadproc)glfwGetProcAddress)
 #else
-#include <SDL2/SDL.h>      // For SDL2   
-#define PROC gladLoadGLLoader((GLADloadproc)SDL_GL_GetProcAddress)
+#define PROC gladLoadGL()
 #endif
 
 #define DEBUG_COLOR_R 255
