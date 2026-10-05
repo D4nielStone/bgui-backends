@@ -507,6 +507,7 @@ void vulkan_render(draw_data* data) {
         if (auto it = call.m_material.m_properties.find("bg_color"); it != call.m_material.m_properties.end() && it->second.m_type == 2) std::memcpy(pc.bg_color, it->second.m_value.m_vec4.v.data(), sizeof(pc.bg_color));
         if (auto it = call.m_material.m_properties.find("border_color"); it != call.m_material.m_properties.end() && it->second.m_type == 2) std::memcpy(pc.border_color, it->second.m_value.m_vec4.v.data(), sizeof(pc.border_color));
         if (auto it = call.m_material.m_properties.find("text_color"); it != call.m_material.m_properties.end() && it->second.m_type == 2) std::memcpy(pc.text_color, it->second.m_value.m_vec4.v.data(), sizeof(pc.text_color));
+        if (call.m_text_color_override) std::memcpy(pc.text_color, call.m_text_color_override->v.data(), sizeof(pc.text_color));
         if (auto it = call.m_material.m_properties.find("border_radius"); it != call.m_material.m_properties.end() && it->second.m_type == 5) pc.border_radius = it->second.m_value.m_float;
         if (auto it = call.m_material.m_properties.find("border_size"); it != call.m_material.m_properties.end() && it->second.m_type == 5) pc.border_size = it->second.m_value.m_float;
         if (auto it = call.m_material.m_properties.find("bordered"); it != call.m_material.m_properties.end() && it->second.m_type == 6) pc.bordered = it->second.m_value.m_int != 0;

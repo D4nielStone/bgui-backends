@@ -369,6 +369,8 @@ void bgui::gl3_render(bgui::draw_data* data) {
             // shader->set should be implemented to set various uniform types
             shader->set(prop.first, prop.second);
         }
+        if (call.m_text_color_override)
+            shader->set("text_color", bgui::propertie{*call.m_text_color_override});
 
         // set quad uniforms
         shader->set("rect", call.m_rect);
