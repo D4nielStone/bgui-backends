@@ -28,8 +28,7 @@
 
 // RAII wrapper for VAO/VBO
 struct quad_vao {
-    GLuint vao = 0;
-    GLuint bo = 0;
+    GLuint vao = 0, vbo = 0;
 
     quad_vao() {
         // simple full-quad (2 triangles) with position (x,y) and texcoord (u,v)
