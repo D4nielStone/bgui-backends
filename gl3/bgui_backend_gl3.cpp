@@ -11,6 +11,7 @@
 #include <sstream>
 #include <algorithm>
 #include <cstddef>
+#include <cstdint>
 #include <unordered_set>
 
 #ifdef BGUI_USE_GLFW
@@ -98,26 +99,38 @@ struct draw_vao {
     }
 };
 
-// Texture cache: map key -> GLuint
-static std::unordered_map<std::string, GLuint> m_texture_cache;
+struct texture_cache_entry {
+    GLuint id;
+    std::uint64_t content_hash;
+    std::uint64_t revision;
+};
+
+static std::unordered_map<std::string, texture_cache_entry> m_texture_cache;
 static bool s_font_antialiasing = true;
 
 // Singleton VAO (recreated if needed)
 static std::unique_ptr<quad_vao> s_quad_vao;
 static std::unique_ptr<draw_vao> s_draw_vao;
 static std::unordered_set<GLuint> s_logged_text_textures;
-static unsigned int s_render_log_count = 0;
-static unsigned int s_text_draw_log_count = 0;
 
-// Helper: build a cache key robust to same path but different buffer/flags
+// Helper: build a cache key robust to same path but different dimensions/flags.
 static std::string build_texture_cache_key(const bgui::texture& tex) {
-    // Combine path, buffer size, alpha flag, red-channel flag
     std::ostringstream ss;
-    ss << tex.m_path << "|" << tex.m_buffer.size()
+    ss << tex.m_path << "|" << tex.m_id << "|" << tex.m_size[0] << "x" << tex.m_size[1]
+       << "|" << tex.m_buffer.size()
        << "|" << (tex.m_has_alpha ? "A" : "N")
        << "|" << (tex.m_use_red_channel ? "R" : "C")
        << "|" << (tex.m_generate_mipmap ? "M" : "N");
     return ss.str();
+}
+
+static std::uint64_t hash_texture_contents(const bgui::texture& tex) {
+    std::uint64_t hash = 14695981039346656037ull;
+    for (const unsigned char byte : tex.m_buffer) {
+        hash ^= byte;
+        hash *= 1099511628211ull;
+    }
+    return hash;
 }
 
 /**
@@ -135,6 +148,55 @@ static bool is_buffer_all_zeros(const std::vector<unsigned char>& buffer) {
     }) == buffer.end();
 }
 
+static void upload_texture_contents(const bgui::texture& tex) {
+    if (tex.m_buffer.empty()) {
+        unsigned char white_pixel[4] = {255, 255, 255, 255};
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, 1, 1, 0, GL_RGBA, GL_UNSIGNED_BYTE, white_pixel);
+        return;
+    }
+
+    const bool debug_upload = tex.m_use_red_channel && is_buffer_all_zeros(tex.m_buffer);
+    if (debug_upload)
+        bgui::detail::log_err() << "[GL3 DEBUG] WARNING: Font atlas buffer (" << tex.m_path << ") is all zeros! Displaying debug texture.\n";
+
+    const GLsizei width = static_cast<GLsizei>(tex.m_size[0]);
+    const GLsizei height = static_cast<GLsizei>(tex.m_size[1]);
+    if (debug_upload) {
+        unsigned char debug_pattern[16] = {
+            DEBUG_COLOR_R, DEBUG_COLOR_G, DEBUG_COLOR_B, DEBUG_COLOR_A,
+            0, 0, 0, 255,
+            0, 0, 0, 255,
+            DEBUG_COLOR_R, DEBUG_COLOR_G, DEBUG_COLOR_B, DEBUG_COLOR_A
+        };
+        glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, 2, 2, 0, GL_RGBA, GL_UNSIGNED_BYTE, debug_pattern);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+        return;
+    }
+
+    GLenum internal_format;
+    GLenum format;
+    if (tex.m_use_red_channel) {
+        internal_format = GL_R8;
+        format = GL_RED;
+    } else if (tex.m_has_alpha) {
+        internal_format = GL_RGBA8;
+        format = GL_RGBA;
+    } else {
+        internal_format = GL_RGB8;
+        format = GL_RGB;
+    }
+
+    glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
+    glTexImage2D(
+        GL_TEXTURE_2D, 0, internal_format, width, height, 0, format,
+        GL_UNSIGNED_BYTE, tex.m_buffer.data()
+    );
+    if (tex.m_generate_mipmap)
+        glGenerateMipmap(GL_TEXTURE_2D);
+}
+
 GLuint bgui::get_quad_vao() {
     if (!s_quad_vao) {
         s_quad_vao = std::make_unique<quad_vao>();
@@ -148,8 +210,23 @@ GLuint bgui::gl3_get_texture(const bgui::texture& tex) {
         return tex.m_id;
 
     const std::string key = build_texture_cache_key(tex);
+    const std::uint64_t content_hash = tex.m_revision == 0
+        ? hash_texture_contents(tex)
+        : 0;
     auto it = m_texture_cache.find(key);
-    if (it != m_texture_cache.end()) return it->second;
+    if (it != m_texture_cache.end()) {
+        if ((tex.m_revision != 0 && it->second.revision == tex.m_revision) ||
+            (tex.m_revision == 0 && it->second.revision == 0 &&
+             it->second.content_hash == content_hash))
+            return it->second.id;
+
+        glBindTexture(GL_TEXTURE_2D, it->second.id);
+        upload_texture_contents(tex);
+        glBindTexture(GL_TEXTURE_2D, 0);
+        it->second.content_hash = content_hash;
+        it->second.revision = tex.m_revision;
+        return it->second.id;
+    }
 
     GLuint texture_id = 0;
     glGenTextures(1, &texture_id);
@@ -165,65 +242,8 @@ GLuint bgui::gl3_get_texture(const bgui::texture& tex) {
                        : filter);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, filter);
 
-    if (!tex.m_buffer.empty()) {
-        
-        bool debug_upload = false;
-        
-        // Debug check: if the texture is a font atlas and the buffer is all zeros, use debug texture
-        if (tex.m_use_red_channel && is_buffer_all_zeros(tex.m_buffer)) {
-            bgui::detail::log_err() << "[GL3 DEBUG] WARNING: Font atlas buffer (" << tex.m_path << ") is all zeros! Displaying debug texture.\n";
-            debug_upload = true;
-        }
-
-        GLsizei width  = static_cast<GLsizei>(tex.m_size[0]);
-        GLsizei height = static_cast<GLsizei>(tex.m_size[1]);
-
-        if (debug_upload) {
-            GLenum internalFormat = GL_RGBA8;
-            GLenum format = GL_RGBA;
-            
-            unsigned char debug_pattern[16] = {
-                DEBUG_COLOR_R, DEBUG_COLOR_G, DEBUG_COLOR_B, DEBUG_COLOR_A,
-                0, 0, 0, 255,                                              
-                0, 0, 0, 255,                                              
-                DEBUG_COLOR_R, DEBUG_COLOR_G, DEBUG_COLOR_B, DEBUG_COLOR_A 
-            };
-            
-            glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
-            glTexImage2D(GL_TEXTURE_2D, 0, internalFormat, 2, 2, 0, format, GL_UNSIGNED_BYTE, debug_pattern);
-            
-            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-            
-        } else {
-            
-            GLenum internalFormat;
-            GLenum format;
-            
-            if (tex.m_use_red_channel) {
-                internalFormat = GL_R8;
-                format = GL_RED;
-            } else if (tex.m_has_alpha) {
-                internalFormat = GL_RGBA8;
-                format = GL_RGBA;
-            } else {
-                internalFormat = GL_RGB8;
-                format = GL_RGB;
-            }
-            
-            glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
-            
-            glTexImage2D(GL_TEXTURE_2D, 0, internalFormat, width, height, 0, format, GL_UNSIGNED_BYTE, tex.m_buffer.data());
-            
-            if (tex.m_generate_mipmap) {
-                glGenerateMipmap(GL_TEXTURE_2D);
-            }
-        }
-    } else {
-        unsigned char white_pixel[4] = {255, 255, 255, 255};
-        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, 1, 1, 0, GL_RGBA, GL_UNSIGNED_BYTE, white_pixel);
-    }
-    m_texture_cache[key] = texture_id;
+    upload_texture_contents(tex);
+    m_texture_cache[key] = {texture_id, content_hash, tex.m_revision};
 
     if (tex.m_use_red_channel && s_logged_text_textures.insert(texture_id).second) {
         const auto non_zero = std::count_if(
@@ -242,7 +262,7 @@ GLuint bgui::gl3_get_texture(const bgui::texture& tex) {
 // Clear texture cache (delete GL textures)
 void bgui::gl3_clear_texture_cache() {
     for (auto& kv : m_texture_cache) {
-        GLuint id = kv.second;
+        GLuint id = kv.second.id;
         if (id) glDeleteTextures(1, &id);
     }
 
@@ -307,18 +327,6 @@ void bgui::gl3_clear() {
 // Render main
 void bgui::gl3_render(bgui::draw_data* data) {
     if(data->m_quad_requires.empty() && data->m_draw_list.get_vertices().empty()) return;
-    const auto queued_quads = data->m_quad_requires.size();
-    size_t text_quads = 0;
-    size_t image_quads = 0;
-    std::queue<bgui::draw_require> debug_queue = data->m_quad_requires;
-    while (!debug_queue.empty()) {
-        const auto& call = debug_queue.front();
-        if (call.m_material.m_shader_tag == "ui::text")
-            ++text_quads;
-        if (call.m_material.m_shader_tag == "ui::image")
-            ++image_quads;
-        debug_queue.pop();
-    }
     glDisable(GL_DEPTH_TEST); // Ensure depth test is disabled for UI rendering
     glDisable(GL_CULL_FACE);
     glEnable(GL_SCISSOR_TEST);
@@ -358,7 +366,6 @@ void bgui::gl3_render(bgui::draw_data* data) {
             GLuint texid = gl3_get_texture(call.m_material.m_texture);
             glBindTexture(GL_TEXTURE_2D, texid);
             shader->set("tex", 0); // sampler unit 0
-            +s_text_draw_log_count;
         } else {
             // make sure no texture bound if material doesn't want texture (avoid sampling mistakes)
             glBindTexture(GL_TEXTURE_2D, 0);

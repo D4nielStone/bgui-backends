@@ -318,6 +318,7 @@ bgui::font& bgui::ft_load_font(const std::string &font_name,
     }
 
     font.atlas.m_size = { float(atlas_width), float(atlas_height) };
+    font.atlas.m_revision = 1;
 
     FT_Done_Face(face);
 

@@ -9,6 +9,7 @@
 #include "os/style_manager.hpp"
 #include <algorithm>
 #include <array>
+#include <cstdint>
 #include <cstring>
 #include <fstream>
 #include <iostream>
@@ -43,6 +44,11 @@ struct Texture {
     VkDescriptorSet descriptor = VK_NULL_HANDLE;
 };
 
+struct CachedTexture {
+    Texture resource;
+    std::uint64_t revision = 0;
+};
+
 struct Frame {
     VkCommandBuffer command = VK_NULL_HANDLE;
     VkSemaphore image_available = VK_NULL_HANDLE;
@@ -50,7 +56,7 @@ struct Frame {
     VkFence fence = VK_NULL_HANDLE;
 };
 
-static std::unordered_map<std::string, Texture> textures;
+static std::unordered_map<std::string, CachedTexture> textures;
 static VkSampler sampler = VK_NULL_HANDLE;
 static VkDescriptorPool descriptor_pool = VK_NULL_HANDLE;
 static VkDescriptorSetLayout descriptor_layout = VK_NULL_HANDLE;
@@ -71,7 +77,8 @@ std::string texture_key(const bgui::texture& t) {
     std::string key = t.m_path + "|" + std::to_string(t.m_id) + "|" +
         std::to_string(t.m_size[0]) + "x" + std::to_string(t.m_size[1]) + "|" +
         std::to_string(t.m_buffer.size()) + "|" + (t.m_use_red_channel ? "r" : "c");
-    if (!t.m_buffer.empty()) key.append(reinterpret_cast<const char*>(t.m_buffer.data()), t.m_buffer.size());
+    if (t.m_revision == 0 && !t.m_buffer.empty())
+        key.append(reinterpret_cast<const char*>(t.m_buffer.data()), t.m_buffer.size());
     return key;
 }
 
@@ -194,9 +201,11 @@ void create_texture(const bgui::texture& source, Texture& out) {
     view.image = out.image; view.viewType = VK_IMAGE_VIEW_TYPE_2D; view.format = format;
     view.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT; view.subresourceRange.levelCount = 1; view.subresourceRange.layerCount = 1;
     check(vkCreateImageView(bgui::vk.device, &view, nullptr, &out.view), "vkCreateImageView");
-    VkDescriptorSetAllocateInfo set{VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO};
-    set.descriptorPool = descriptor_pool; set.descriptorSetCount = 1; set.pSetLayouts = &descriptor_layout;
-    check(vkAllocateDescriptorSets(bgui::vk.device, &set, &out.descriptor), "vkAllocateDescriptorSets");
+    if (!out.descriptor) {
+        VkDescriptorSetAllocateInfo set{VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO};
+        set.descriptorPool = descriptor_pool; set.descriptorSetCount = 1; set.pSetLayouts = &descriptor_layout;
+        check(vkAllocateDescriptorSets(bgui::vk.device, &set, &out.descriptor), "vkAllocateDescriptorSets");
+    }
     VkDescriptorImageInfo image_info_desc{sampler, out.view, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL};
     VkWriteDescriptorSet write{VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET};
     write.dstSet = out.descriptor; write.dstBinding = 0; write.descriptorCount = 1;
@@ -432,7 +441,7 @@ void set_font_antialiasing(bool enabled) {
 
     vkDeviceWaitIdle(bgui::vk.device);
     for (auto& entry : textures)
-        destroy_texture(entry.second);
+        destroy_texture(entry.second.resource);
     textures.clear();
     check(vkResetDescriptorPool(bgui::vk.device, descriptor_pool, 0),
           "vkResetDescriptorPool");
@@ -514,15 +523,31 @@ void vulkan_render(draw_data* data) {
         pc.use_tex = call.m_material.m_use_tex ? 1 : 0;
         Texture* tex = nullptr;
         if (call.m_material.m_use_tex) {
-            auto key = texture_key(call.m_material.m_texture);
+            const auto& source = call.m_material.m_texture;
+            auto key = texture_key(source);
             auto it = textures.find(key);
-            if (it == textures.end()) it = textures.emplace(key, Texture{}).first, create_texture(call.m_material.m_texture, it->second);
-            tex = &it->second;
+            if (it == textures.end()) {
+                it = textures.emplace(key, CachedTexture{}).first;
+                create_texture(source, it->second.resource);
+                it->second.revision = source.m_revision;
+            } else if (source.m_revision != 0 && it->second.revision != source.m_revision) {
+                check(vkDeviceWaitIdle(vk.device), "vkDeviceWaitIdle");
+                const VkDescriptorSet descriptor = it->second.resource.descriptor;
+                destroy_texture(it->second.resource);
+                it->second.resource = {};
+                it->second.resource.descriptor = descriptor;
+                create_texture(source, it->second.resource);
+                it->second.revision = source.m_revision;
+            }
+            tex = &it->second.resource;
         } else {
             static bgui::texture white; white.m_size = {1, 1}; white.m_buffer = {255, 255, 255, 255}; white.m_has_alpha = true;
             auto key = texture_key(white); auto it = textures.find(key);
-            if (it == textures.end()) it = textures.emplace(key, Texture{}).first, create_texture(white, it->second);
-            tex = &it->second;
+            if (it == textures.end()) {
+                it = textures.emplace(key, CachedTexture{}).first;
+                create_texture(white, it->second.resource);
+            }
+            tex = &it->second.resource;
         }
         vkCmdBindDescriptorSets(frame.command, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline_layout, 0, 1, &tex->descriptor, 0, nullptr);
         vkCmdPushConstants(frame.command, pipeline_layout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(pc), &pc);
@@ -545,7 +570,7 @@ void shutdown_vulkan() {
     if (!vk.instance) return;
     if (vk.device) {
         vkDeviceWaitIdle(vk.device);
-        for (auto& t : textures) destroy_texture(t.second);
+        for (auto& t : textures) destroy_texture(t.second.resource);
         textures.clear();
         for (auto& f : frames) { if (f.fence) vkDestroyFence(vk.device, f.fence, nullptr); if (f.image_available) vkDestroySemaphore(vk.device, f.image_available, nullptr); if (f.render_finished) vkDestroySemaphore(vk.device, f.render_finished, nullptr); }
         cleanup_swapchain();
