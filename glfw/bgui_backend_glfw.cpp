@@ -35,6 +35,8 @@ static std::unordered_map<int, bgui::input_key> s_glfw_keyboard_reverse_map = {
     {GLFW_KEY_V, bgui::input_key::v}, {GLFW_KEY_B, bgui::input_key::b},
     {GLFW_KEY_N, bgui::input_key::n}, {GLFW_KEY_M, bgui::input_key::m},
     {GLFW_KEY_UP, bgui::input_key::up}, {GLFW_KEY_DOWN, bgui::input_key::down},
+    {GLFW_KEY_HOME, bgui::input_key::home}, {GLFW_KEY_END, bgui::input_key::end},
+    {GLFW_KEY_TAB, bgui::input_key::tab},
     {GLFW_KEY_LEFT_SHIFT, bgui::input_key::left_shift},
     {GLFW_KEY_RIGHT_SHIFT, bgui::input_key::right_shift},
     {GLFW_KEY_LEFT_CONTROL, bgui::input_key::left_control},
@@ -51,6 +53,17 @@ static std::unordered_map<int, bgui::input_action> s_glfw_action_reverse_map = {
     {GLFW_RELEASE, bgui::input_action::release},
     {GLFW_REPEAT, bgui::input_action::repeat}
 };
+
+static void set_clipboard_callbacks(bgui::context& io)
+{
+    io.m_get_clipboard = []() {
+        const char* clipboard = glfwGetClipboardString(s_window);
+        return clipboard ? std::string(clipboard) : std::string{};
+    };
+    io.m_set_clipboard = [](const std::string& text) {
+        glfwSetClipboardString(s_window, text.c_str());
+    };
+}
 
 // -----------------------------------------------------------------------------
 // UTF32 -> UTF8
@@ -119,6 +132,7 @@ void bgui::attach_glfw_window(GLFWwindow* window)
     s_window = window;
 
     auto& io = bgui::get_context();
+    set_clipboard_callbacks(io);
     glfwGetWindowSize(s_window, &io.m_size.x, &io.m_size.y);
     glfwSetMouseButtonCallback(s_window, bgui::glfw_mouse_button_callback);
     glfwSetKeyCallback(s_window, bgui::glfw_key_callback);
@@ -131,6 +145,9 @@ void bgui::attach_glfw_window(GLFWwindow* window)
 void bgui::detach_glfw_window()
 {
     s_window = nullptr;
+    auto& io = bgui::get_context();
+    io.m_get_clipboard = nullptr;
+    io.m_set_clipboard = nullptr;
 }
 
 GLFWwindow* bgui::set_up_glfw(
@@ -169,6 +186,7 @@ GLFWwindow* bgui::set_up_glfw(
 
     io.m_title = title;
     io.m_size = {width, height};
+    set_clipboard_callbacks(io);
 
     glfwSetMouseButtonCallback(s_window, bgui::glfw_mouse_button_callback);
     glfwSetKeyCallback(s_window, bgui::glfw_key_callback);
@@ -383,6 +401,9 @@ void bgui::shutdown_glfw()
 {
     glfwDestroyWindow(s_window);
     s_window = nullptr;
+    auto& io = bgui::get_context();
+    io.m_get_clipboard = nullptr;
+    io.m_set_clipboard = nullptr;
     glfwTerminate();
 }
 
