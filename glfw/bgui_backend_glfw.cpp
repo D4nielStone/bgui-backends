@@ -3,6 +3,22 @@
 #include <stdexcept>
 #include <iostream>
 
+#ifndef GLFW_RESIZE_NS_CURSOR
+#define GLFW_RESIZE_NS_CURSOR GLFW_VRESIZE_CURSOR
+#endif
+
+#ifndef GLFW_RESIZE_EW_CURSOR
+#define GLFW_RESIZE_EW_CURSOR GLFW_HRESIZE_CURSOR
+#endif
+
+#ifndef GLFW_RESIZE_NWSE_CURSOR
+#define GLFW_RESIZE_NWSE_CURSOR GLFW_ARROW_CURSOR
+#endif
+
+#ifndef GLFW_RESIZE_NESW_CURSOR
+#define GLFW_RESIZE_NESW_CURSOR GLFW_ARROW_CURSOR
+#endif
+
 static GLFWwindow* s_window = nullptr;
 
 // -----------------------------------------------------------------------------
