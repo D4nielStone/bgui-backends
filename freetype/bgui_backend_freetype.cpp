@@ -1,4 +1,5 @@
 #include <bgui_backend_freetype.hpp>
+#include "elem/icon.hpp"
 #include "os/asset_manager.hpp"
 #include "utils/logging.hpp"
 #include <unordered_map>
@@ -222,6 +223,13 @@ void bgui::set_up_freetype() {
     }
 
     ft_load_font(default_font_name, default_font_path, bgui::font_manager::m_default_resolution);
+    ft_load_font(
+        "nerd_font",
+        bgui::asset_manager::get_instance().resolve_asset_path(
+            "fonts/3270NerdFont-Regular.ttf"
+        ),
+        bgui::font_manager::m_default_resolution
+    );
 }
 
 bgui::font& bgui::ft_load_system_font(const std::string& path) {
@@ -399,7 +407,24 @@ namespace {
 
         int atlas_width = 0;
         const int atlas_height = ascent_pixels + descent_pixels;
-        for (unsigned int codepoint = 32; codepoint < 256; ++codepoint) {
+        std::vector<char32_t> codepoints;
+        codepoints.reserve(224 + bgui::nerd_font_icon_codepoints.size());
+        for (char32_t codepoint = 32; codepoint < 256; ++codepoint)
+            codepoints.push_back(codepoint);
+        if (font_name == "nerd_font") {
+            codepoints.insert(
+                codepoints.end(),
+                bgui::nerd_font_icon_codepoints.begin(),
+                bgui::nerd_font_icon_codepoints.end()
+            );
+        }
+        std::sort(codepoints.begin(), codepoints.end());
+        codepoints.erase(
+            std::unique(codepoints.begin(), codepoints.end()),
+            codepoints.end()
+        );
+
+        for (const char32_t codepoint : codepoints) {
             if (FT_Load_Char(face, codepoint, FT_LOAD_DEFAULT))
                 continue;
             atlas_width += face->glyph->metrics.width / 64 + padding;
@@ -410,7 +435,7 @@ namespace {
                                 << " x " << atlas_height << "\n";
 
         int x_offset = 0;
-        for (unsigned int codepoint = 32; codepoint < 256; ++codepoint) {
+        for (const char32_t codepoint : codepoints) {
             if (FT_Load_Char(face, codepoint, FT_LOAD_RENDER))
                 continue;
 
