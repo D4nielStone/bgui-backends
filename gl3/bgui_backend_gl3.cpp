@@ -334,6 +334,67 @@ void bgui::gl3_clear() {
     }
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
 }
+
+namespace {
+    bool same_texture(const bgui::texture& left, const bgui::texture& right) {
+        return left.m_id == right.m_id &&
+            left.m_external == right.m_external &&
+            left.m_path == right.m_path &&
+            left.m_has_alpha == right.m_has_alpha &&
+            left.m_use_red_channel == right.m_use_red_channel &&
+            left.m_generate_mipmap == right.m_generate_mipmap &&
+            left.m_buffer == right.m_buffer &&
+            left.m_offset == right.m_offset &&
+            left.m_size == right.m_size &&
+            left.m_revision == right.m_revision;
+    }
+
+    bool same_material(const bgui::material& left, const bgui::material& right) {
+        if (left.m_shader_tag != right.m_shader_tag ||
+            left.m_use_tex != right.m_use_tex ||
+            left.m_properties.size() != right.m_properties.size())
+            return false;
+        if (left.m_use_tex && !same_texture(left.m_texture, right.m_texture))
+            return false;
+        for (const auto& [name, value] : left.m_properties) {
+            const auto found = right.m_properties.find(name);
+            if (found == right.m_properties.end() || !(value == found->second))
+                return false;
+        }
+        return true;
+    }
+
+    bool can_batch(const bgui::draw_require& left, const bgui::draw_require& right) {
+        return left.m_clip_rect == right.m_clip_rect &&
+            same_material(left.m_material, right.m_material) &&
+            left.m_text_color_override == right.m_text_color_override;
+    }
+
+    void append_quad_vertices(
+        std::vector<float>& vertices,
+        const bgui::draw_require& call
+    ) {
+        static constexpr float quad_uvs[6][2] = {
+            {0.f, 1.f}, {1.f, 0.f}, {0.f, 0.f},
+            {0.f, 1.f}, {1.f, 1.f}, {1.f, 0.f}
+        };
+        for (const auto& uv : quad_uvs) {
+            const float x = uv[0];
+            const float y = uv[1];
+            vertices.insert(vertices.end(), {
+                call.m_rect.x + call.m_rect.z * x,
+                call.m_rect.y + call.m_rect.w * y,
+                x,
+                y,
+                call.m_uv_min.x + (call.m_uv_max.x - call.m_uv_min.x) * x,
+                call.m_uv_min.y + (call.m_uv_max.y - call.m_uv_min.y) * y,
+                std::abs(call.m_rect.z),
+                std::abs(call.m_rect.w)
+            });
+        }
+    }
+}
+
 // Render main
 void bgui::gl3_render(bgui::draw_data* data) {
     if(data->m_quad_requires.empty() && data->m_draw_list.get_vertices().empty()) return;
@@ -350,10 +411,22 @@ void bgui::gl3_render(bgui::draw_data* data) {
     bgl::gl3_shader* last_shader = nullptr;
     const auto window_size = bgui::get_context_size();
 
-    // process all quad requires
+    std::vector<bgui::draw_require> calls;
+    calls.reserve(data->m_quad_requires.size());
     while (!data->m_quad_requires.empty()) {
-        auto call = data->m_quad_requires.front();
+        calls.push_back(data->m_quad_requires.front());
         data->m_quad_requires.pop();
+    }
+    static std::vector<float> batch_vertices;
+    batch_vertices.clear();
+
+    for (std::size_t first = 0; first < calls.size();) {
+        const std::size_t batch_start = first;
+        const auto& call = calls[first];
+        std::size_t end = first + 1;
+        while (end < calls.size() && can_batch(call, calls[end]))
+            ++end;
+        first = end;
 
         if (call.m_clip_rect.z <= 0 || call.m_clip_rect.w <= 0)
             continue;
@@ -389,14 +462,16 @@ void bgui::gl3_render(bgui::draw_data* data) {
         if (call.m_text_color_override)
             shader->set("text_color", bgui::propertie{*call.m_text_color_override});
 
-        // set quad uniforms
-        shader->set("rect", call.m_rect);
-        shader->set("uv_min", call.m_uv_min);
-        shader->set("uv_max", call.m_uv_max);
         shader->set("projection", proj);
 
-        // draw: call.m_count should be number of vertices (6 for quad)
-        glDrawArrays(GL_TRIANGLES, 0, call.m_count);
+        batch_vertices.clear();
+        for (std::size_t index = batch_start; index < end; ++index)
+            append_quad_vertices(batch_vertices, calls[index]);
+        if (batch_vertices.empty())
+            continue;
+        glBindVertexArray(get_quad_vao());
+        s_quad_vao->upload(batch_vertices);
+        glDrawArrays(GL_TRIANGLES, 0, static_cast<GLsizei>(batch_vertices.size() / 8));
     }
 
     const auto& draw_vertices = data->m_draw_list.get_vertices();
@@ -411,10 +486,7 @@ void bgui::gl3_render(bgui::draw_data* data) {
                   data->m_clip_rect.z, data->m_clip_rect.w);
         if (!s_draw_vao) s_draw_vao = std::make_unique<draw_vao>();
         glBindVertexArray(s_draw_vao->vao);
-        glBindBuffer(GL_ARRAY_BUFFER, s_draw_vao->vbo);
-        glBufferData(GL_ARRAY_BUFFER,
-                     static_cast<GLsizeiptr>(draw_vertices.size() * sizeof(bgui::draw_vertex)),
-                     draw_vertices.data(), GL_DYNAMIC_DRAW);
+        s_draw_vao->upload(draw_vertices);
         glDrawArrays(GL_TRIANGLES, 0, static_cast<GLsizei>(draw_vertices.size()));
         glBindBuffer(GL_ARRAY_BUFFER, 0);
         glBindVertexArray(0);
