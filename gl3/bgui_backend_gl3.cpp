@@ -29,37 +29,36 @@
 // RAII wrapper for VAO/VBO
 struct quad_vao {
     GLuint vao = 0, vbo = 0;
+    GLsizeiptr capacity = 0;
 
     quad_vao() {
-        // simple full-quad (2 triangles) with position (x,y) and texcoord (u,v)
-        float quad_vertices[] = {
-            // positions   // texcoords
-            0.0f, 1.0f,   0.0f, 1.0f,
-            1.0f, 0.0f,   1.0f, 0.0f,
-            0.0f, 0.0f,   0.0f, 0.0f,
-            0.0f, 1.0f,   0.0f, 1.0f,
-            1.0f, 1.0f,   1.0f, 1.0f,
-            1.0f, 0.0f,   1.0f, 0.0f
-        };
-
         glGenVertexArrays(1, &vao);
         glGenBuffers(1, &vbo);
 
         glBindVertexArray(vao);
         glBindBuffer(GL_ARRAY_BUFFER, vbo);
-        glBufferData(GL_ARRAY_BUFFER, sizeof(quad_vertices), quad_vertices, GL_STATIC_DRAW);
-
-        // attribute 0: vec2 position
-        glEnableVertexAttribArray(0);
-        glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), (void*)0);
-
-        // attribute 1: vec2 texcoord
-        glEnableVertexAttribArray(1);
-        glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), (void*)(2 * sizeof(float)));
-
-        // restore to safe default
+        glBufferData(GL_ARRAY_BUFFER, 0, nullptr, GL_DYNAMIC_DRAW);
+        for (GLuint attribute = 0; attribute < 4; ++attribute)
+            glEnableVertexAttribArray(attribute);
+        glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 8 * sizeof(float), nullptr);
+        glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 8 * sizeof(float),
+                              reinterpret_cast<void*>(2 * sizeof(float)));
+        glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, 8 * sizeof(float),
+                              reinterpret_cast<void*>(4 * sizeof(float)));
+        glVertexAttribPointer(3, 2, GL_FLOAT, GL_FALSE, 8 * sizeof(float),
+                              reinterpret_cast<void*>(6 * sizeof(float)));
         glBindBuffer(GL_ARRAY_BUFFER, 0);
         glBindVertexArray(0);
+    }
+
+    void upload(const std::vector<float>& vertices) {
+        const auto size = static_cast<GLsizeiptr>(vertices.size() * sizeof(float));
+        glBindBuffer(GL_ARRAY_BUFFER, vbo);
+        if (size > capacity) {
+            capacity = std::max(size, std::max<GLsizeiptr>(4096, capacity * 2));
+            glBufferData(GL_ARRAY_BUFFER, capacity, nullptr, GL_DYNAMIC_DRAW);
+        }
+        glBufferSubData(GL_ARRAY_BUFFER, 0, size, vertices.data());
     }
 
     ~quad_vao() {
@@ -76,6 +75,7 @@ struct quad_vao {
 struct draw_vao {
     GLuint vao = 0;
     GLuint vbo = 0;
+    GLsizeiptr capacity = 0;
 
     draw_vao() {
         glGenVertexArrays(1, &vao);
@@ -91,6 +91,16 @@ struct draw_vao {
                               reinterpret_cast<void*>(offsetof(bgui::draw_vertex, m_color)));
         glBindBuffer(GL_ARRAY_BUFFER, 0);
         glBindVertexArray(0);
+    }
+
+    void upload(const std::vector<bgui::draw_vertex>& vertices) {
+        const auto size = static_cast<GLsizeiptr>(vertices.size() * sizeof(bgui::draw_vertex));
+        glBindBuffer(GL_ARRAY_BUFFER, vbo);
+        if (size > capacity) {
+            capacity = std::max(size, std::max<GLsizeiptr>(4096, capacity * 2));
+            glBufferData(GL_ARRAY_BUFFER, capacity, nullptr, GL_DYNAMIC_DRAW);
+        }
+        glBufferSubData(GL_ARRAY_BUFFER, 0, size, vertices.data());
     }
 
     ~draw_vao() {
