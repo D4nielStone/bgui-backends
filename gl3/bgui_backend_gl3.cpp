@@ -350,6 +350,8 @@ namespace {
     }
 
     bool same_material(const bgui::material& left, const bgui::material& right) {
+        if (&left == &right)
+            return true;
         if (left.m_shader_tag != right.m_shader_tag ||
             left.m_use_tex != right.m_use_tex ||
             left.m_properties.size() != right.m_properties.size())
@@ -365,7 +367,8 @@ namespace {
     }
 
     bool can_batch(const bgui::draw_require& left, const bgui::draw_require& right) {
-        return left.m_clip_rect == right.m_clip_rect &&
+        return left.m_count == 6 && right.m_count == 6 &&
+            left.m_clip_rect == right.m_clip_rect &&
             same_material(left.m_material, right.m_material) &&
             left.m_text_color_override == right.m_text_color_override;
     }
@@ -425,7 +428,7 @@ void bgui::gl3_render(bgui::draw_data* data) {
         const std::size_t batch_start = first;
         const auto& call = calls[first];
         std::size_t end = first + 1;
-        while (end < calls.size() && can_batch(call, calls[end]))
+        while (call.m_count == 6 && end < calls.size() && can_batch(call, calls[end]))
             ++end;
         first = end;
 
@@ -472,7 +475,10 @@ void bgui::gl3_render(bgui::draw_data* data) {
             continue;
         glBindVertexArray(get_quad_vao());
         s_quad_vao->upload(batch_vertices);
-        glDrawArrays(GL_TRIANGLES, 0, static_cast<GLsizei>(batch_vertices.size() / 8));
+        const auto vertex_count = call.m_count == 6
+            ? static_cast<GLsizei>(batch_vertices.size() / 8)
+            : static_cast<GLsizei>(call.m_count);
+        glDrawArrays(GL_TRIANGLES, 0, vertex_count);
     }
 
     const auto& draw_vertices = data->m_draw_list.get_vertices();
