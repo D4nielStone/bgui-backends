@@ -18,21 +18,26 @@ static std::map<std::string, std::string> embedded_gl3_shaders = {
 {"ui::default_vs", R"(#version 330 core
 layout(location = 0) in vec2 aPos;
 layout(location = 1) in vec2 aUv;
+layout(location = 2) in vec2 aTexCoord;
+layout(location = 3) in vec2 aRectSize;
 
 out vec2 Uv;
+out vec2 TexCoord;
+flat out vec2 RectSize;
 
-uniform vec4 rect;
 uniform mat4 projection;
 
 void main() {
-    vec2 pos = aPos * rect.zw + rect.xy;
     Uv = aUv;
-    gl_Position =  projection * vec4(pos, 0, 1);
+    TexCoord = aTexCoord;
+    RectSize = aRectSize;
+    gl_Position = projection * vec4(aPos, 0, 1);
 }
 )"},
 {"ui::default_fs", R"(#version 330 core
 
 in vec2 Uv; // UV coordinates from vertex gl3_shader (0..1)
+flat in vec2 RectSize;
 out vec4 FragColor;
 
 // uniforms
@@ -41,13 +46,11 @@ uniform vec4 border_color;
 uniform bool bordered;
 uniform float border_radius;
 uniform float border_size;
-uniform vec4 rect;
 
 void main() {
     if(bordered) {
-        vec2 pos = rect.zw * Uv;
-        vec2 halfSize = rect.zw / 2;
-        vec2 center = rect.zw * 0.5;
+        vec2 pos = RectSize * Uv;
+        vec2 center = RectSize * 0.5;
     vec2 p = pos - center;
 
     vec2 q = abs(p) - (center - vec2(border_radius));
@@ -66,6 +69,7 @@ void main() {
 )"}, {"ui::text_fs", R"(#version 330 core
 
 in vec2 Uv;
+in vec2 TexCoord;
 out vec4 FragColor;
 
 uniform sampler2D tex;
@@ -74,9 +78,7 @@ uniform vec2 uv_min;
 uniform vec2 uv_max;
 
 void main() {
-    vec2 uv = mix(uv_min, uv_max, vec2(Uv.x, Uv.y));
-
-    float r = texture(tex, uv).r;
+    float r = texture(tex, TexCoord).r;
 
     FragColor = vec4(text_color.rgb, r * text_color.w);
 }
@@ -98,15 +100,13 @@ void main() {
 )"}, {"ui::image_fs", R"(#version 330 core
 
 in vec2 Uv;
+in vec2 TexCoord;
 out vec4 FragColor;
 
 uniform sampler2D tex;
-uniform vec2 uv_min;
-uniform vec2 uv_max;
 
 void main() {
-    vec2 uv = mix(uv_min, uv_max, Uv);
-    FragColor = texture(tex, uv);
+    FragColor = texture(tex, TexCoord);
 }
 )"}
 };
