@@ -411,7 +411,8 @@ void bgui::gl3_render(bgui::draw_data* data) {
     bgl::gl3_shader* last_shader = nullptr;
     const auto window_size = bgui::get_context_size();
 
-    std::vector<bgui::draw_require> calls;
+    static std::vector<bgui::draw_require> calls;
+    calls.clear();
     calls.reserve(data->m_quad_requires.size());
     while (!data->m_quad_requires.empty()) {
         calls.push_back(data->m_quad_requires.front());
@@ -496,6 +497,7 @@ void bgui::gl3_render(bgui::draw_data* data) {
 
     // unbind last shader and VAO
     if (last_shader) last_shader->unbind();
+    glBindBuffer(GL_ARRAY_BUFFER, 0);
     glBindVertexArray(0);
     glDisable(GL_SCISSOR_TEST);
 
