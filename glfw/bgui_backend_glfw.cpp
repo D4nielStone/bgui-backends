@@ -63,6 +63,12 @@ static std::unordered_map<int, bgui::input_key> s_glfw_keyboard_reverse_map = {
     {GLFW_KEY_F5, bgui::input_key::f5},
     {GLFW_KEY_SPACE, bgui::input_key::space},
     {GLFW_KEY_KP_ENTER, bgui::input_key::keypad_enter},
+    {GLFW_KEY_EQUAL, bgui::input_key::equal},
+    {GLFW_KEY_MINUS, bgui::input_key::minus},
+    {GLFW_KEY_0, bgui::input_key::zero},
+    {GLFW_KEY_KP_ADD, bgui::input_key::keypad_add},
+    {GLFW_KEY_KP_SUBTRACT, bgui::input_key::keypad_subtract},
+    {GLFW_KEY_KP_0, bgui::input_key::keypad_zero},
 };
 
 static std::unordered_map<int, bgui::input_action> s_glfw_action_reverse_map = {
