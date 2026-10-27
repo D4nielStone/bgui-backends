@@ -4,6 +4,9 @@ enable_language(C)
 # FREETYPE backend
 if(BGUI_USE_FREETYPE)
     add_subdirectory(freetype)
+    # Core startup calls the FreeType backend; the backend stores fonts in core.
+    # Declare both directions so static consumers are linked in a valid order.
+    target_link_libraries(bgui_core PUBLIC bgui_backend_freetype)
     target_link_libraries(bgui_backend INTERFACE bgui_backend_freetype)
 endif()
 
