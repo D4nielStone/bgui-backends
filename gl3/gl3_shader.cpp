@@ -101,12 +101,24 @@ void main() {
 
 in vec2 Uv;
 in vec2 TexCoord;
+flat in vec2 RectSize;
 out vec4 FragColor;
 
 uniform sampler2D tex;
+uniform float border_radius;
+uniform float border_size;
+uniform vec4 border_color;
 
 void main() {
-    FragColor = texture(tex, TexCoord);
+    vec2 halfSize = RectSize * 0.5;
+    float radius = clamp(border_radius, 0.0, min(halfSize.x, halfSize.y));
+    vec2 q = abs(RectSize * Uv - halfSize) - (halfSize - vec2(radius));
+    float distance = length(max(q, 0.0)) + min(max(q.x, q.y), 0.0) - radius;
+    float coverage = 1.0 - smoothstep(-0.5, 0.5, distance);
+    if (coverage <= 0.0) discard;
+    vec4 sampled = texture(tex, TexCoord);
+    FragColor = border_size > 0.0 && distance > -border_size ? border_color : sampled;
+    FragColor.a *= coverage;
 }
 )"}
 };
