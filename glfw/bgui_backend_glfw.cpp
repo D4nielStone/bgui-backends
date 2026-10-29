@@ -1,4 +1,6 @@
 #include <bgui_backend_glfw.hpp>
+#include "bgui_backend_glfw_events.hpp"
+#include <utility>
 #include <os/os.hpp>
 #include <stdexcept>
 #include <iostream>
@@ -20,6 +22,13 @@
 #endif
 
 static GLFWwindow* s_window = nullptr;
+static bgui::glfw_event_observer s_before_poll_events;
+
+bgui::glfw_event_observer bgui::set_glfw_event_observer(glfw_event_observer observer) {
+    auto previous = std::move(s_before_poll_events);
+    s_before_poll_events = std::move(observer);
+    return previous;
+}
 
 // -----------------------------------------------------------------------------
 // Maps
@@ -324,6 +333,7 @@ void bgui::glfw_main_loop()
 {
     while (!glfwWindowShouldClose(s_window))
     {
+        if (s_before_poll_events) s_before_poll_events();
         glfwPollEvents();
 
         if (bgui::get_context().m_refresh_func)
