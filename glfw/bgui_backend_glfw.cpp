@@ -70,6 +70,7 @@ static std::unordered_map<int, bgui::input_key> s_glfw_keyboard_reverse_map = {
     {GLFW_KEY_RIGHT_ALT, bgui::input_key::right_alt},
     {GLFW_KEY_DELETE, bgui::input_key::delete_key},
     {GLFW_KEY_F5, bgui::input_key::f5},
+    {GLFW_KEY_F3, bgui::input_key::f3},
     {GLFW_KEY_SPACE, bgui::input_key::space},
     {GLFW_KEY_KP_ENTER, bgui::input_key::keypad_enter},
     {GLFW_KEY_EQUAL, bgui::input_key::equal},
