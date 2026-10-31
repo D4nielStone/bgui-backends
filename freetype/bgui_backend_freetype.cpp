@@ -1,3 +1,4 @@
+#include <os/resource_files.hpp>
 #include <bgui_backend_freetype.hpp>
 #include "elem/icon.hpp"
 #include "os/asset_manager.hpp"
@@ -151,12 +152,16 @@ void bgui::set_up_freetype() {
 
     bgui::detail::log_out() << "[FreeType BackEnd] Initialized.\n";
 
-    ft_search_system_fonts();
+    if (!bgui::resource_files::embedded()) ft_search_system_fonts();
 
     std::unordered_map<std::string, std::string> system_fonts;
     {
         std::lock_guard lock(s_system_fonts_mutex);
         system_fonts = s_system_fonts;
+    }
+    if (bgui::resource_files::embedded()) {
+        system_fonts.clear();
+        system_fonts["Bundled"] = "assets/fonts/HackNerdFont-Regular.ttf";
     }
 
     for(auto font : system_fonts) {
@@ -375,7 +380,12 @@ namespace {
             throw std::invalid_argument("Font resolution must be greater than zero.");
 
         FT_Face face;
-        if (FT_New_Face(s_ft, font_path.c_str(), 0, &face))
+        bgui::resource_files::bytes memory;
+        if (bgui::resource_files::embedded()) memory = bgui::resource_files::read(font_path);
+        const auto result = bgui::resource_files::embedded()
+            ? FT_New_Memory_Face(s_ft, memory.data(), static_cast<FT_Long>(memory.size()), 0, &face)
+            : FT_New_Face(s_ft, font_path.c_str(), 0, &face);
+        if (result)
             throw std::runtime_error("Error loading font: " + font_name);
 
         struct face_guard {
