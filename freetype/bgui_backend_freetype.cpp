@@ -144,6 +144,8 @@ namespace {
 }
 
 void bgui::set_up_freetype() {
+    if (s_ft)
+        return;
     bgui::detail::log_out() << "[FreeType BackEnd]Setting up FreeType and searching for default fonts.\n";
 
     if (FT_Init_FreeType(&s_ft)) {
@@ -265,7 +267,10 @@ void bgui::shutdown_freetype() {
         if (!load_error && result.error)
             load_error = result.error;
     }
-    FT_Done_FreeType(s_ft);
+    if (s_ft) {
+        FT_Done_FreeType(s_ft);
+        s_ft = nullptr;
+    }
     bgui::detail::log_out() << "[FreeType BackEnd] Shutdown.\n";
     if (load_error)
         std::rethrow_exception(load_error);
