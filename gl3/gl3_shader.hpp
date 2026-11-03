@@ -9,7 +9,7 @@
 namespace bgl {
     class gl3_shader {
     private:
-        GLuint m_id;
+        GLuint m_id{0};
         
         void set_mat4(const char* name, const bgui::mat4 matrix);
         void set_vec4(const char* name, const bgui::vec4 vector);
@@ -40,5 +40,5 @@ namespace bgl {
     gl3_shader* get_text_gl3_shader();
     gl3_shader* get_draw_gl3_shader();
     gl3_shader* get_gl3_shader_from_tag(const std::string&);
-    static void delete_gl3_shaders();
+    void delete_gl3_shaders();
 } // namespace bgl

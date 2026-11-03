@@ -299,17 +299,20 @@ void gl3_shader::unbind() {
 }
 
 gl3_shader* bgl::get_default_gl3_shader() {
-    static gl3_shader s("ui::default_vs", "ui::default_fs");
+    static gl3_shader s;
+    s.compile("ui::default_vs", "ui::default_fs");
     return &s;
 }
 
 gl3_shader* bgl::get_text_gl3_shader() {
-    static gl3_shader s("ui::default_vs", "ui::text_fs");
+    static gl3_shader s;
+    s.compile("ui::default_vs", "ui::text_fs");
     return &s;
 }
 
 gl3_shader* bgl::get_draw_gl3_shader() {
-    static gl3_shader s("ui::draw_vs", "ui::draw_fs");
+    static gl3_shader s;
+    s.compile("ui::draw_vs", "ui::draw_fs");
     return &s;
 }
 
@@ -322,7 +325,8 @@ gl3_shader* bgl::get_gl3_shader_from_tag(const std::string& name) {
             bgui::detail::log_err() << "[BGUI GL3] shader tag ui::text resolved\n";
         return shader;
     } else if(name == "ui::image") {
-        static gl3_shader s("ui::default_vs", "ui::image_fs");
+        static gl3_shader s;
+        s.compile("ui::default_vs", "ui::image_fs");
         if (shader_tag_logs.insert(name).second)
             bgui::detail::log_err() << "[BGUI GL3] shader tag ui::image resolved\n";
         return &s;
@@ -337,5 +341,7 @@ void bgl::delete_gl3_shaders() {
         glDeleteProgram(pair.second);
     }
     gl3_shader_cache.clear();
+    missing_uniform_warnings.clear();
+    shader_tag_logs.clear();
     bgui::detail::log_out() << "BGUI: Deleted all GL3 shaders from cache." << std::endl;
 }

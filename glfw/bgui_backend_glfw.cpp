@@ -1,6 +1,7 @@
 #include <bgui_backend_glfw.hpp>
 #include "bgui_backend_glfw_events.hpp"
 #include <utility>
+#include <array>
 #include <os/os.hpp>
 #include <stdexcept>
 #include <iostream>
@@ -23,6 +24,25 @@
 
 static GLFWwindow* s_window = nullptr;
 static bgui::glfw_event_observer s_before_poll_events;
+static std::array<GLFWcursor*, 7> s_cursors{};
+
+static void create_cursors()
+{
+    const int shapes[]{GLFW_HAND_CURSOR, GLFW_ARROW_CURSOR, GLFW_IBEAM_CURSOR,
+        GLFW_RESIZE_EW_CURSOR, GLFW_RESIZE_NS_CURSOR,
+        GLFW_RESIZE_NWSE_CURSOR, GLFW_RESIZE_NESW_CURSOR};
+    for (std::size_t i = 0; i < s_cursors.size(); ++i)
+        s_cursors[i] = glfwCreateStandardCursor(shapes[i]);
+}
+
+static void destroy_cursors()
+{
+    for (auto& cursor : s_cursors) {
+        if (cursor) glfwDestroyCursor(cursor);
+        cursor = nullptr;
+    }
+}
+
 
 bgui::glfw_event_observer bgui::set_glfw_event_observer(glfw_event_observer observer) {
     auto previous = std::move(s_before_poll_events);
@@ -162,6 +182,7 @@ void bgui::attach_glfw_window(GLFWwindow* window)
     if (s_window && s_window != window)
         throw std::runtime_error("GLFW window already exists.");
 
+    if (!s_window) create_cursors();
     s_window = window;
 
     auto& io = bgui::get_context();
@@ -177,6 +198,7 @@ void bgui::attach_glfw_window(GLFWwindow* window)
 
 void bgui::detach_glfw_window()
 {
+    destroy_cursors();
     s_window = nullptr;
     auto& io = bgui::get_context();
     io.m_get_clipboard = nullptr;
@@ -217,6 +239,7 @@ GLFWwindow* bgui::set_up_glfw(
 
     auto& io = bgui::get_context();
 
+    create_cursors();
     io.m_title = title;
     io.m_size = {width, height};
     set_clipboard_callbacks(io);
@@ -262,42 +285,34 @@ void bgui::glfw_update(context& io)
         windowY + (float)localY
     };
 
-    static GLFWcursor* hand  = glfwCreateStandardCursor(GLFW_HAND_CURSOR);
-    static GLFWcursor* arrow = glfwCreateStandardCursor(GLFW_ARROW_CURSOR);
-    static GLFWcursor* ibeam = glfwCreateStandardCursor(GLFW_IBEAM_CURSOR);
-    static GLFWcursor* resize_horizontal = glfwCreateStandardCursor(GLFW_RESIZE_EW_CURSOR);
-    static GLFWcursor* resize_vertical = glfwCreateStandardCursor(GLFW_RESIZE_NS_CURSOR);
-    static GLFWcursor* resize_nwse = glfwCreateStandardCursor(GLFW_RESIZE_NWSE_CURSOR);
-    static GLFWcursor* resize_nesw = glfwCreateStandardCursor(GLFW_RESIZE_NESW_CURSOR);
-
     switch (io.m_actual_cursor)
     {
         case bgui::cursor::arrow:
-            glfwSetCursor(s_window, arrow);
+            glfwSetCursor(s_window, s_cursors[1]);
             break;
 
         case bgui::cursor::hand:
-            glfwSetCursor(s_window, hand);
+            glfwSetCursor(s_window, s_cursors[0]);
             break;
 
         case bgui::cursor::ibeam:
-            glfwSetCursor(s_window, ibeam);
+            glfwSetCursor(s_window, s_cursors[2]);
             break;
 
         case bgui::cursor::resize_horizontal:
-            glfwSetCursor(s_window, resize_horizontal);
+            glfwSetCursor(s_window, s_cursors[3]);
             break;
 
         case bgui::cursor::resize_vertical:
-            glfwSetCursor(s_window, resize_vertical);
+            glfwSetCursor(s_window, s_cursors[4]);
             break;
 
         case bgui::cursor::resize_nwse:
-            glfwSetCursor(s_window, resize_nwse);
+            glfwSetCursor(s_window, s_cursors[5]);
             break;
 
         case bgui::cursor::resize_nesw:
-            glfwSetCursor(s_window, resize_nesw);
+            glfwSetCursor(s_window, s_cursors[6]);
             break;
     }
 }
@@ -434,6 +449,7 @@ void bgui::glfw_scroll_callback(GLFWwindow*, double xoffset, double yoffset)
 
 void bgui::shutdown_glfw()
 {
+    destroy_cursors();
     glfwDestroyWindow(s_window);
     s_window = nullptr;
     auto& io = bgui::get_context();

@@ -313,6 +313,7 @@ void bgui::set_up_gl3() {
 
 // Shutdown safely - must be called while OpenGL context is valid
 void bgui::shutdown_gl3() {
+    bgl::delete_gl3_shaders();
     // delete textures
     gl3_clear_texture_cache();
 
